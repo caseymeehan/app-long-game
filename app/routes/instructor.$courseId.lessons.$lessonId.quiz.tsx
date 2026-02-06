@@ -35,12 +35,19 @@ import {
   Check,
   CheckCircle2,
   Circle,
+  GripVertical,
   Plus,
   Save,
   Trash2,
   XCircle,
   AlertTriangle,
 } from "lucide-react";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  type DropResult,
+} from "@hello-pangea/dnd";
 import { data, isRouteErrorResponse } from "react-router";
 
 // ─── Types for wizard state ───
@@ -435,6 +442,20 @@ export default function QuizBuilderWizard({
     }));
   }
 
+  function handleQuestionDragEnd(result: DropResult) {
+    if (!result.destination) return;
+    const fromIndex = result.source.index;
+    const toIndex = result.destination.index;
+    if (fromIndex === toIndex) return;
+
+    setWizard((prev) => {
+      const reordered = [...prev.questions];
+      const [moved] = reordered.splice(fromIndex, 1);
+      reordered.splice(toIndex, 0, moved);
+      return { ...prev, questions: reordered };
+    });
+  }
+
   function renderStep2() {
     return (
       <div className="space-y-4">
@@ -442,8 +463,8 @@ export default function QuizBuilderWizard({
           <CardHeader>
             <h2 className="text-lg font-semibold">Questions</h2>
             <p className="text-sm text-muted-foreground">
-              Add questions to your quiz. You&apos;ll set answer options in the
-              next step.
+              Add questions to your quiz. Drag to reorder. You&apos;ll set
+              answer options in the next step.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -454,56 +475,96 @@ export default function QuizBuilderWizard({
               </p>
             )}
 
-            {wizard.questions.map((q, idx) => (
-              <div
-                key={q.id}
-                className="flex items-start gap-3 rounded-lg border p-4"
-              >
-                <span className="mt-2 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
-                  {idx + 1}
-                </span>
-                <div className="flex-1 space-y-3">
-                  <Input
-                    value={q.text}
-                    onChange={(e) =>
-                      updateQuestion(q.id, { text: e.target.value })
-                    }
-                    placeholder="Enter question text..."
-                  />
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground">
-                      Type:
-                    </Label>
-                    <Select
-                      value={q.type}
-                      onValueChange={(val) =>
-                        updateQuestion(q.id, { type: val as QuestionType })
-                      }
-                    >
-                      <SelectTrigger className="w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={QuestionType.MultipleChoice}>
-                          Multiple Choice
-                        </SelectItem>
-                        <SelectItem value={QuestionType.TrueFalse}>
-                          True / False
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+            <DragDropContext onDragEnd={handleQuestionDragEnd}>
+              <Droppable droppableId="quiz-questions" type="question">
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className="space-y-4"
+                  >
+                    {wizard.questions.map((q, idx) => (
+                      <Draggable
+                        key={q.id}
+                        draggableId={q.id}
+                        index={idx}
+                      >
+                        {(dragProvided, snapshot) => (
+                          <div
+                            ref={dragProvided.innerRef}
+                            {...dragProvided.draggableProps}
+                            className={`flex items-start gap-3 rounded-lg border p-4 ${
+                              snapshot.isDragging
+                                ? "bg-muted shadow-lg ring-2 ring-primary/20"
+                                : ""
+                            }`}
+                          >
+                            <div
+                              {...dragProvided.dragHandleProps}
+                              className="mt-2 cursor-grab text-muted-foreground hover:text-foreground"
+                            >
+                              <GripVertical className="size-4" />
+                            </div>
+                            <span className="mt-2 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                              {idx + 1}
+                            </span>
+                            <div className="flex-1 space-y-3">
+                              <Input
+                                value={q.text}
+                                onChange={(e) =>
+                                  updateQuestion(q.id, {
+                                    text: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter question text..."
+                              />
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground">
+                                  Type:
+                                </Label>
+                                <Select
+                                  value={q.type}
+                                  onValueChange={(val) =>
+                                    updateQuestion(q.id, {
+                                      type: val as QuestionType,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="w-48">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem
+                                      value={QuestionType.MultipleChoice}
+                                    >
+                                      Multiple Choice
+                                    </SelectItem>
+                                    <SelectItem
+                                      value={QuestionType.TrueFalse}
+                                    >
+                                      True / False
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeQuestion(q.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
                   </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeQuestion(q.id)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            ))}
+                )}
+              </Droppable>
+            </DragDropContext>
 
             <Button variant="outline" onClick={addQuestion}>
               <Plus className="mr-1.5 size-4" />
