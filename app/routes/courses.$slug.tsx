@@ -153,6 +153,7 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
   const { course, salesCopyHtml, lessonCount, enrolled, progress, lessonProgressMap, currentUserId } = loaderData;
   const fetcher = useFetcher();
   const isEnrolling = fetcher.state !== "idle";
+  const isInstructor = currentUserId === course.instructorId;
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.success) {
@@ -252,7 +253,7 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
           )}
 
           {/* Bottom CTA */}
-          {!enrolled && (
+          {!enrolled && !isInstructor && (
             <div className="mt-8 rounded-lg border bg-muted/50 p-6">
               <h3 className="mb-2 text-lg font-semibold">Ready to get started?</h3>
               <p className="mb-4 text-sm text-muted-foreground">
@@ -266,6 +267,7 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
             <CourseContent
               course={course}
               enrolled={enrolled}
+              isInstructor={isInstructor}
               lessonProgressMap={lessonProgressMap}
             />
           </div>
@@ -276,11 +278,18 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
           <Card className="sticky top-6">
             <CardHeader>
               <h2 className="text-lg font-semibold">
-                {enrolled ? "Your Progress" : "Get Started"}
+                {isInstructor ? "Your Course" : enrolled ? "Your Progress" : "Get Started"}
               </h2>
             </CardHeader>
             <CardContent className="space-y-4">
-              {enrolled ? (
+              {isInstructor ? (
+                <Link to={`/instructor/${course.id}`}>
+                  <Button className="w-full">
+                    <Pencil className="mr-2 size-4" />
+                    Manage Course
+                  </Button>
+                </Link>
+              ) : enrolled ? (
                 <>
                   <div className="mb-2 flex items-center justify-between text-sm">
                     <span>{progress}% complete</span>
@@ -341,10 +350,12 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
 function CourseContent({
   course,
   enrolled,
+  isInstructor,
   lessonProgressMap,
 }: {
-  course: { slug: string; modules: Array<{ id: number; title: string; lessons: Array<{ id: number; title: string; durationMinutes: number | null }> }> };
+  course: { id: number; slug: string; modules: Array<{ id: number; title: string; lessons: Array<{ id: number; title: string; durationMinutes: number | null }> }> };
   enrolled: boolean;
+  isInstructor: boolean;
   lessonProgressMap: Record<number, string>;
 }) {
   return (
@@ -369,7 +380,27 @@ function CourseContent({
                   {mod.lessons.map((lesson) => {
                     const status = lessonProgressMap[lesson.id];
                     const isCompleted = status === LessonProgressStatus.Completed;
-                    const isInProgress = status === LessonProgressStatus.InProgress;
+                    const isLessonInProgress = status === LessonProgressStatus.InProgress;
+
+                    if (isInstructor) {
+                      return (
+                        <li key={lesson.id}>
+                          <Link
+                            to={`/instructor/${course.id}/lessons/${lesson.id}`}
+                            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted"
+                          >
+                            <Pencil className="size-4 shrink-0 text-muted-foreground" />
+                            <span className="flex-1">{lesson.title}</span>
+                            {lesson.durationMinutes && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Clock className="size-3" />
+                                {formatDuration(lesson.durationMinutes, true, false, false)}
+                              </span>
+                            )}
+                          </Link>
+                        </li>
+                      );
+                    }
 
                     return (
                       <li key={lesson.id}>
@@ -380,7 +411,7 @@ function CourseContent({
                           >
                             {isCompleted ? (
                               <CheckCircle2 className="size-4 shrink-0 text-green-500" />
-                            ) : isInProgress ? (
+                            ) : isLessonInProgress ? (
                               <PlayCircle className="size-4 shrink-0 text-blue-500" />
                             ) : (
                               <Circle className="size-4 shrink-0 text-muted-foreground" />
