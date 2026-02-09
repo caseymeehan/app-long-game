@@ -26,9 +26,6 @@ import {
   updateCourse,
   updateCourseStatus,
   deleteCourse,
-  getAllCategories,
-  getCategoryBySlug,
-  generateSlug,
 } from "./courseService";
 
 describe("courseService", () => {
@@ -414,49 +411,4 @@ describe("courseService", () => {
     });
   });
 
-  // ─── Categories ───
-
-  describe("getAllCategories", () => {
-    it("returns all categories", () => {
-      const cats = getAllCategories();
-      expect(cats.length).toBeGreaterThanOrEqual(1);
-      expect(cats.some((c) => c.slug === "programming")).toBe(true);
-    });
-  });
-
-  describe("getCategoryBySlug", () => {
-    it("returns the category by slug", () => {
-      const cat = getCategoryBySlug("programming");
-      expect(cat).toBeDefined();
-      expect(cat!.name).toBe("Programming");
-    });
-
-    it("returns undefined for non-existent slug", () => {
-      expect(getCategoryBySlug("nonexistent")).toBeUndefined();
-    });
-  });
-
-  // ─── Slug Generation ───
-
-  describe("generateSlug", () => {
-    it("converts title to lowercase slug", () => {
-      expect(generateSlug("My Course Title")).toBe("my-course-title");
-    });
-
-    it("removes special characters", () => {
-      expect(generateSlug("Hello, World! (2024)")).toBe("hello-world-2024");
-    });
-
-    it("trims leading and trailing dashes", () => {
-      expect(generateSlug("--hello--")).toBe("hello");
-    });
-
-    it("collapses multiple separators", () => {
-      expect(generateSlug("foo   bar")).toBe("foo-bar");
-    });
-
-    it("handles already-clean slugs", () => {
-      expect(generateSlug("already-clean")).toBe("already-clean");
-    });
-  });
 });

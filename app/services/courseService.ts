@@ -265,21 +265,3 @@ export function deleteCourse(id: number) {
   return db.delete(courses).where(eq(courses.id, id)).returning().get();
 }
 
-export function getAllCategories() {
-  return db.select().from(categories).all();
-}
-
-export function getCategoryBySlug(slug: string) {
-  return db
-    .select()
-    .from(categories)
-    .where(eq(categories.slug, slug))
-    .get();
-}
-
-export function generateSlug(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}

@@ -1,6 +1,7 @@
 import { Form, Link, useSearchParams, useNavigation, isRouteErrorResponse } from "react-router";
 import type { Route } from "./+types/courses";
-import { buildCourseQuery, getAllCategories, getLessonCountForCourse } from "~/services/courseService";
+import { buildCourseQuery, getLessonCountForCourse } from "~/services/courseService";
+import { getAllCategories } from "~/services/categoryService";
 import { CourseStatus } from "~/db/schema";
 import { Card, CardContent, CardFooter, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
