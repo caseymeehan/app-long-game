@@ -14,7 +14,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { RichTextEditor } from "~/components/rich-text-editor";
-import { AlertTriangle, ArrowLeft, ClipboardList, Save } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ClipboardList, ExternalLink, Save } from "lucide-react";
 import { data, isRouteErrorResponse } from "react-router";
 
 export function meta({ data: loaderData }: Route.MetaArgs) {
@@ -240,7 +240,15 @@ export default function InstructorLessonEditor({
       </Link>
 
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">{lesson.title}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold">{lesson.title}</h1>
+          <Link to={`/courses/${course.slug}/lessons/${lesson.id}`}>
+            <Button variant="outline" size="sm">
+              <ExternalLink className="mr-1.5 size-4" />
+              View Lesson
+            </Button>
+          </Link>
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Module: {mod.title}
         </p>
