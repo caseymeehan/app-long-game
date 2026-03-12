@@ -124,6 +124,9 @@
 
 ```
 <CommitMap>
+  <Commit id="05.06.03">
+    Reset to the state before we added the `/do-work` skill - usually not needed
+  </Commit>
   <Commit id="06.03.01">
     See my solution — `/do-work` skill added
   </Commit>
@@ -157,17 +160,14 @@
 
 ```
 <CommitMap>
-  <Commit id="06.05.01">
-    Start the lesson
-  </Commit>
   <Commit id="06.07.01">
-    Skip setup — coupon notifications plan added
+    Start the lesson — added a plan for building coupon redemption notifications
   </Commit>
   <Commit id="06.07.02">
-    Updated do-work skill with red-green-refactor
+    See the solution - updated `/do-work` skill with red-green-refactor
   </Commit>
   <Commit id="06.07.03">
-    See my solution — coupon redemption notifications built
+    See the built code — coupon redemption notifications built
   </Commit>
 </CommitMap>
 ```
@@ -176,11 +176,8 @@
 
 ```
 <CommitMap>
-  <Commit id="06.07.03">
-    Start the lesson — coupon notifications from the Red-Green-Refactor lesson in place
-  </Commit>
   <Commit id="07.03.01">
-    Skip setup — admin analytics PRD and plan added
+    Added an admin analytics PRD and plan
   </Commit>
   <Commit id="07.03.02">
     See my solution — admin analytics Phase 1 summary cards built via HITL
@@ -205,17 +202,14 @@
 
 ```
 <CommitMap>
-  <Commit id="07.05.01">
-    Start the lesson — Phase 2 from the AFK lesson in place
-  </Commit>
   <Commit id="07.08.01">
-    Skip the first exercise — RALPH hooked up to GitHub issues
+    Start the lesson — hooked up Ralph to GitHub issues
   </Commit>
   <Commit id="07.08.02">
-    Skip the second exercise — Phase 3 course breakdown table added
+    See my solution — Phase 3 course breakdown table added
   </Commit>
   <Commit id="07.08.03">
-    See my solution — admin analytics fully complete with 12-month default
+    See my bugfix — added a 12-month default
   </Commit>
 </CommitMap>
 ```
@@ -224,11 +218,8 @@
 
 ```
 <CommitMap>
-  <Commit id="07.08.03">
-    Start the lesson — admin analytics complete from the Backlog lesson
-  </Commit>
   <Commit id="07.09.01">
-    Skip the explainer — PRD and plan skills updated to use GitHub
+    Start the lesson - PRD and plan skills updated to use GitHub
   </Commit>
 </CommitMap>
 ```
@@ -237,11 +228,8 @@
 
 ```
 <CommitMap>
-  <Commit id="07.09.01">
-    Start the lesson — GitHub-aware skills from the previous lesson in place
-  </Commit>
   <Commit id="08.02.01">
-    See my solution — prd-to-issues skill added
+    Start the lesson — `/prd-to-issues` skill added
   </Commit>
 </CommitMap>
 ```
@@ -250,14 +238,11 @@
 
 ```
 <CommitMap>
-  <Commit id="08.02.01">
-    Start the lesson — prd-to-issues skill from the Kanban lesson in place
-  </Commit>
   <Commit id="08.03.01">
-    Skip setup — gamification PRD added
+    Start the lesson — added a gamification PRD
   </Commit>
   <Commit id="08.03.02">
-    See my solution — XP, streaks, quiz XP, and dashboard gamification built
+    See the built code — XP, streaks, quiz XP, and dashboard gamification built
   </Commit>
 </CommitMap>
 ```
@@ -292,11 +277,8 @@
 
 ```
 <CommitMap>
-  <Commit id="08.07.01">
-    Start the lesson — prototype from the Prototyping lesson in place
-  </Commit>
   <Commit id="08.09.01">
-    See my solution — improve-codebase-architecture skill added
+    Start the lesson — `/improve-codebase-architecture` skill added
   </Commit>
 </CommitMap>
 ```
@@ -305,11 +287,8 @@
 
 ```
 <CommitMap>
-  <Commit id="08.09.01">
-    Start the lesson — improve-codebase skill from the previous lesson in place
-  </Commit>
   <Commit id="08.10.01">
-    Skip the explainer — module awareness added to write-a-prd skill
+    Start the lesson — module awareness added to write-a-prd skill
   </Commit>
 </CommitMap>
 ```
