@@ -4,7 +4,7 @@ import { createTestDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 
 let testDb: ReturnType<typeof createTestDb>;
-let base: ReturnType<typeof seedBaseData>;
+let base: Awaited<ReturnType<typeof seedBaseData>>;
 
 vi.mock("~/db", () => ({
   get db() {
@@ -21,16 +21,16 @@ import {
 } from "./purchaseService";
 
 describe("purchaseService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     testDb = createTestDb();
-    base = seedBaseData(testDb);
+    base = await seedBaseData(testDb);
   });
 
   // ─── Create Purchase ───
 
   describe("createPurchase", () => {
-    it("creates a purchase record", () => {
-      const purchase = createPurchase(base.user.id, base.course.id, 4999, "US");
+    it("creates a purchase record", async () => {
+      const purchase = await createPurchase(base.user.id, base.course.id, 4999, "US");
       expect(purchase).toBeDefined();
       expect(purchase.userId).toBe(base.user.id);
       expect(purchase.courseId).toBe(base.course.id);
@@ -38,13 +38,13 @@ describe("purchaseService", () => {
       expect(purchase.country).toBe("US");
     });
 
-    it("creates a purchase with null country", () => {
-      const purchase = createPurchase(base.user.id, base.course.id, 4999, null);
+    it("creates a purchase with null country", async () => {
+      const purchase = await createPurchase(base.user.id, base.course.id, 4999, null);
       expect(purchase.country).toBeNull();
     });
 
-    it("stores discounted price correctly", () => {
-      const purchase = createPurchase(base.user.id, base.course.id, 2500, "IN");
+    it("stores discounted price correctly", async () => {
+      const purchase = await createPurchase(base.user.id, base.course.id, 2500, "IN");
       expect(purchase.pricePaid).toBe(2500);
       expect(purchase.country).toBe("IN");
     });
@@ -53,39 +53,39 @@ describe("purchaseService", () => {
   // ─── Find Purchase ───
 
   describe("findPurchase", () => {
-    it("returns purchase for user+course", () => {
-      createPurchase(base.user.id, base.course.id, 4999, "US");
-      const found = findPurchase(base.user.id, base.course.id);
+    it("returns purchase for user+course", async () => {
+      await createPurchase(base.user.id, base.course.id, 4999, "US");
+      const found = await findPurchase(base.user.id, base.course.id);
       expect(found).toBeDefined();
       expect(found!.pricePaid).toBe(4999);
     });
 
-    it("returns undefined when no purchase exists", () => {
-      expect(findPurchase(base.user.id, base.course.id)).toBeUndefined();
+    it("returns undefined when no purchase exists", async () => {
+      expect(await findPurchase(base.user.id, base.course.id)).toBeUndefined();
     });
   });
 
   // ─── Get By User ───
 
   describe("getPurchasesByUser", () => {
-    it("returns all purchases for a user", () => {
-      createPurchase(base.user.id, base.course.id, 4999, "US");
-      const purchases = getPurchasesByUser(base.user.id);
+    it("returns all purchases for a user", async () => {
+      await createPurchase(base.user.id, base.course.id, 4999, "US");
+      const purchases = await getPurchasesByUser(base.user.id);
       expect(purchases).toHaveLength(1);
     });
 
-    it("returns empty array when user has no purchases", () => {
-      expect(getPurchasesByUser(base.user.id)).toHaveLength(0);
+    it("returns empty array when user has no purchases", async () => {
+      expect(await getPurchasesByUser(base.user.id)).toHaveLength(0);
     });
   });
 
   // ─── Get By Course ───
 
   describe("getPurchasesByCourse", () => {
-    it("returns all purchases for a course", () => {
-      createPurchase(base.user.id, base.course.id, 4999, "US");
-      createPurchase(base.instructor.id, base.course.id, 4999, "GB");
-      const purchases = getPurchasesByCourse(base.course.id);
+    it("returns all purchases for a course", async () => {
+      await createPurchase(base.user.id, base.course.id, 4999, "US");
+      await createPurchase(base.instructor.id, base.course.id, 4999, "GB");
+      const purchases = await getPurchasesByCourse(base.course.id);
       expect(purchases).toHaveLength(2);
     });
   });
@@ -93,8 +93,8 @@ describe("purchaseService", () => {
   // ─── Team Purchase ───
 
   describe("createTeamPurchase", () => {
-    it("creates a purchase, team, and coupons", () => {
-      const result = createTeamPurchase(
+    it("creates a purchase, team, and coupons", async () => {
+      const result = await createTeamPurchase(
         base.user.id,
         base.course.id,
         10000,
@@ -110,8 +110,8 @@ describe("purchaseService", () => {
       expect(result.coupons).toHaveLength(3);
     });
 
-    it("generates coupons linked to the correct team and purchase", () => {
-      const result = createTeamPurchase(
+    it("generates coupons linked to the correct team and purchase", async () => {
+      const result = await createTeamPurchase(
         base.user.id,
         base.course.id,
         10000,
@@ -127,8 +127,8 @@ describe("purchaseService", () => {
       }
     });
 
-    it("generates unique coupon codes", () => {
-      const result = createTeamPurchase(
+    it("generates unique coupon codes", async () => {
+      const result = await createTeamPurchase(
         base.user.id,
         base.course.id,
         10000,
@@ -140,8 +140,8 @@ describe("purchaseService", () => {
       expect(codes.size).toBe(5);
     });
 
-    it("reuses the same team across multiple team purchases", () => {
-      const first = createTeamPurchase(
+    it("reuses the same team across multiple team purchases", async () => {
+      const first = await createTeamPurchase(
         base.user.id,
         base.course.id,
         10000,
@@ -149,7 +149,7 @@ describe("purchaseService", () => {
         2
       );
 
-      const course2 = testDb
+      const [course2] = await testDb
         .insert(schema.courses)
         .values({
           title: "Second Course",
@@ -159,10 +159,9 @@ describe("purchaseService", () => {
           categoryId: base.category.id,
           status: schema.CourseStatus.Published,
         })
-        .returning()
-        .get();
+        .returning();
 
-      const second = createTeamPurchase(
+      const second = await createTeamPurchase(
         base.user.id,
         course2.id,
         5000,
@@ -174,14 +173,13 @@ describe("purchaseService", () => {
       expect(second.coupons).toHaveLength(3);
     });
 
-    it("makes the purchaser a team admin", () => {
-      createTeamPurchase(base.user.id, base.course.id, 10000, "US", 1);
+    it("makes the purchaser a team admin", async () => {
+      await createTeamPurchase(base.user.id, base.course.id, 10000, "US", 1);
 
-      const membership = testDb
+      const [membership] = await testDb
         .select()
         .from(schema.teamMembers)
-        .where(eq(schema.teamMembers.userId, base.user.id))
-        .get();
+        .where(eq(schema.teamMembers.userId, base.user.id));
 
       expect(membership).toBeDefined();
       expect(membership!.role).toBe(schema.TeamMemberRole.Admin);

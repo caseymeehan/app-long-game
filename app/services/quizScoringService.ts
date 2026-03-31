@@ -1,4 +1,4 @@
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, count, avg, max, min, sum, desc } from "drizzle-orm";
 import { db } from "~/db";
 import {
   quizzes,
@@ -7,11 +7,8 @@ import {
   quizAttempts,
   quizAnswers,
 } from "~/db/schema";
-import Database from "better-sqlite3";
 
-const rawDb = new Database("data.db");
-
-function scoreMultipleChoiceQuestions(quizData: any, answers: any): any {
+async function scoreMultipleChoiceQuestions(quizData: any, answers: any): Promise<any> {
   let correctCount = 0;
   let totalMC = 0;
 
@@ -25,11 +22,10 @@ function scoreMultipleChoiceQuestions(quizData: any, answers: any): any {
         );
         if (!userAnswer) continue;
 
-        const options = db
+        const options = await db
           .select()
           .from(quizOptions)
-          .where(eq(quizOptions.questionId, question.id))
-          .all();
+          .where(eq(quizOptions.questionId, question.id));
         const correctOption = options.find((o) => o.isCorrect === true);
 
         if (
@@ -52,7 +48,7 @@ function scoreMultipleChoiceQuestions(quizData: any, answers: any): any {
   };
 }
 
-function scoreTrueFalseQuestions(quizData: any, answers: any): any {
+async function scoreTrueFalseQuestions(quizData: any, answers: any): Promise<any> {
   let correctCount = 0;
   let totalTF = 0;
 
@@ -66,7 +62,7 @@ function scoreTrueFalseQuestions(quizData: any, answers: any): any {
         );
         if (!userAnswer) continue;
 
-        const correctOpt = db
+        const [correctOpt] = await db
           .select()
           .from(quizOptions)
           .where(
@@ -74,8 +70,7 @@ function scoreTrueFalseQuestions(quizData: any, answers: any): any {
               eq(quizOptions.questionId, question.id),
               eq(quizOptions.isCorrect, true)
             )
-          )
-          .get();
+          );
 
         if (correctOpt && userAnswer.selectedOptionId === correctOpt.id) {
           correctCount++;
@@ -94,25 +89,24 @@ function scoreTrueFalseQuestions(quizData: any, answers: any): any {
   };
 }
 
-export function getScore(quizId: any, answers: any): any {
+export async function getScore(quizId: any, answers: any): Promise<any> {
   try {
-    const quiz = db.select().from(quizzes).where(eq(quizzes.id, quizId)).get();
+    const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, quizId));
     if (!quiz) {
       console.log("Quiz not found: " + quizId);
       return { score: 0, passed: false, grade: "F" };
     }
 
-    const questions = db
+    const questions = await db
       .select()
       .from(quizQuestions)
       .where(eq(quizQuestions.quizId, quizId))
-      .orderBy(quizQuestions.position)
-      .all();
+      .orderBy(quizQuestions.position);
 
     const quizData = { ...quiz, questions };
 
-    const mcResult = scoreMultipleChoiceQuestions(quizData, answers);
-    const tfResult = scoreTrueFalseQuestions(quizData, answers);
+    const mcResult = await scoreMultipleChoiceQuestions(quizData, answers);
+    const tfResult = await scoreTrueFalseQuestions(quizData, answers);
 
     const totalCorrect = mcResult.correct + tfResult.correct;
     const totalQuestions = mcResult.total + tfResult.total;
@@ -162,24 +156,23 @@ export function calculateGrade(score: any): any {
   }
 }
 
-export function computeResult(
+export async function computeResult(
   userId: any,
   quizId: any,
   selectedAnswers: any
-): any {
+): Promise<any> {
   try {
-    const quiz = db.select().from(quizzes).where(eq(quizzes.id, quizId)).get();
+    const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, quizId));
     if (!quiz) {
       console.log("quiz not found");
       return null;
     }
 
-    const questions = db
+    const questions = await db
       .select()
       .from(quizQuestions)
       .where(eq(quizQuestions.quizId, quizId))
-      .orderBy(quizQuestions.position)
-      .all();
+      .orderBy(quizQuestions.position);
 
     let correct = 0;
     let total = questions.length;
@@ -201,15 +194,14 @@ export function computeResult(
 
       let correctOptionId = null;
       if (q.questionType === "multiple_choice") {
-        const opts = db
+        const opts = await db
           .select()
           .from(quizOptions)
-          .where(eq(quizOptions.questionId, q.id))
-          .all();
+          .where(eq(quizOptions.questionId, q.id));
         const correctOpt = opts.find((o) => o.isCorrect === true);
         correctOptionId = correctOpt ? correctOpt.id : null;
       } else if (q.questionType === "true_false") {
-        const correctOpt = db
+        const [correctOpt] = await db
           .select()
           .from(quizOptions)
           .where(
@@ -217,8 +209,7 @@ export function computeResult(
               eq(quizOptions.questionId, q.id),
               eq(quizOptions.isCorrect, true)
             )
-          )
-          .get();
+          );
         correctOptionId = correctOpt ? correctOpt.id : null;
       }
 
@@ -237,7 +228,7 @@ export function computeResult(
     const passed = scoreValue > 0.7;
     const grade = calculateGrade(scoreValue);
 
-    const attempt = db
+    const [attempt] = await db
       .insert(quizAttempts)
       .values({
         userId,
@@ -245,18 +236,16 @@ export function computeResult(
         score: scoreValue,
         passed,
       })
-      .returning()
-      .get();
+      .returning();
 
     for (const result of questionResults) {
       if (result.selectedOptionId !== null) {
-        db.insert(quizAnswers)
+        await db.insert(quizAnswers)
           .values({
             attemptId: attempt.id,
             questionId: result.questionId,
             selectedOptionId: result.selectedOptionId,
-          })
-          .run();
+          });
       }
     }
 
@@ -275,21 +264,20 @@ export function computeResult(
   }
 }
 
-export function getQuizStats(quizId: any): any {
+export async function getQuizStats(quizId: any): Promise<any> {
   try {
-    const rows: any = rawDb
-      .prepare(
-        `SELECT
-        COUNT(*) as total_attempts,
-        AVG(score) as avg_score,
-        MAX(score) as high_score,
-        MIN(score) as low_score,
-        SUM(CASE WHEN passed = 1 THEN 1 ELSE 0 END) as pass_count
-      FROM quiz_attempts WHERE quiz_id = ?`
-      )
-      .get(quizId);
+    const [rows] = await db
+      .select({
+        totalAttempts: count(),
+        avgScore: avg(quizAttempts.score),
+        highScore: max(quizAttempts.score),
+        lowScore: min(quizAttempts.score),
+        passCount: sum(sql<number>`CASE WHEN ${quizAttempts.passed} = true THEN 1 ELSE 0 END`),
+      })
+      .from(quizAttempts)
+      .where(eq(quizAttempts.quizId, quizId));
 
-    if (!rows || rows.total_attempts === 0) {
+    if (!rows || rows.totalAttempts === 0) {
       return {
         totalAttempts: 0,
         averageScore: 0,
@@ -300,11 +288,11 @@ export function getQuizStats(quizId: any): any {
     }
 
     return {
-      totalAttempts: rows.total_attempts,
-      averageScore: rows.avg_score,
-      highScore: rows.high_score,
-      lowScore: rows.low_score,
-      passRate: rows.pass_count / rows.total_attempts,
+      totalAttempts: rows.totalAttempts,
+      averageScore: Number(rows.avgScore),
+      highScore: Number(rows.highScore),
+      lowScore: Number(rows.lowScore),
+      passRate: Number(rows.passCount) / rows.totalAttempts,
     };
   } catch (e) {
     console.log(e);
@@ -318,15 +306,23 @@ export function getQuizStats(quizId: any): any {
   }
 }
 
-export function getUserQuizHistory(userId: any, quizId: any): any {
+export async function getUserQuizHistory(userId: any, quizId: any): Promise<any> {
   try {
-    const attempts = rawDb
-      .prepare(
-        `SELECT id, score, passed, attempted_at FROM quiz_attempts
-       WHERE user_id = ? AND quiz_id = ?
-       ORDER BY attempted_at DESC`
+    const attempts = await db
+      .select({
+        id: quizAttempts.id,
+        score: quizAttempts.score,
+        passed: quizAttempts.passed,
+        attemptedAt: quizAttempts.attemptedAt,
+      })
+      .from(quizAttempts)
+      .where(
+        and(
+          eq(quizAttempts.userId, userId),
+          eq(quizAttempts.quizId, quizId)
+        )
       )
-      .all(userId, quizId) as any[];
+      .orderBy(desc(quizAttempts.attemptedAt));
 
     const results = [];
     for (const attempt of attempts) {
@@ -339,9 +335,9 @@ export function getUserQuizHistory(userId: any, quizId: any): any {
       results.push({
         attemptId: attempt.id,
         score: attempt.score,
-        passed: attempt.passed === 1,
+        passed: attempt.passed,
         grade,
-        attemptedAt: attempt.attempted_at,
+        attemptedAt: attempt.attemptedAt,
       });
     }
 

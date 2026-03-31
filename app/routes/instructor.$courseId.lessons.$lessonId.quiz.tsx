@@ -134,7 +134,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Select a user from the DevUI panel.", { status: 401 });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
   if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
     throw data("Only instructors and admins can access this page.", { status: 403 });
   }
@@ -144,7 +144,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Invalid course ID.", { status: 400 });
   }
 
-  const course = getCourseById(courseId);
+  const course = await getCourseById(courseId);
   if (!course) {
     throw data("Course not found.", { status: 404 });
   }
@@ -158,20 +158,20 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Invalid lesson ID.", { status: 400 });
   }
 
-  const lesson = getLessonById(lessonId);
+  const lesson = await getLessonById(lessonId);
   if (!lesson) {
     throw data("Lesson not found.", { status: 404 });
   }
 
-  const mod = getModuleById(lesson.moduleId);
+  const mod = await getModuleById(lesson.moduleId);
   if (!mod || mod.courseId !== courseId) {
     throw data("Lesson not found in this course.", { status: 404 });
   }
 
   // Load existing quiz if present
-  const existingQuizBasic = getQuizByLessonId(lessonId);
+  const existingQuizBasic = await getQuizByLessonId(lessonId);
   const existingQuiz = existingQuizBasic
-    ? getQuizWithQuestions(existingQuizBasic.id)
+    ? await getQuizWithQuestions(existingQuizBasic.id)
     : null;
 
   return { course, lesson, module: mod, existingQuiz };
@@ -186,24 +186,24 @@ export async function action({ params, request }: Route.ActionArgs) {
     throw data("You must be logged in.", { status: 401 });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
   if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
     throw data("Only instructors and admins can manage quizzes.", { status: 403 });
   }
 
   const { courseId, lessonId } = parseParams(params, quizParamsSchema);
 
-  const course = getCourseById(courseId);
+  const course = await getCourseById(courseId);
   if (!course || (course.instructorId !== currentUserId && user.role !== UserRole.Admin)) {
     throw data("Course not found or not yours.", { status: 403 });
   }
 
-  const lesson = getLessonById(lessonId);
+  const lesson = await getLessonById(lessonId);
   if (!lesson) {
     throw data("Lesson not found.", { status: 404 });
   }
 
-  const mod = getModuleById(lesson.moduleId);
+  const mod = await getModuleById(lesson.moduleId);
   if (!mod || mod.courseId !== courseId) {
     throw data("Lesson not found in this course.", { status: 404 });
   }
@@ -231,13 +231,13 @@ export async function action({ params, request }: Route.ActionArgs) {
     }
 
     // Delete existing quiz if present
-    const existingQuiz = getQuizByLessonId(lessonId);
+    const existingQuiz = await getQuizByLessonId(lessonId);
     if (existingQuiz) {
-      deleteQuiz(existingQuiz.id);
+      await deleteQuiz(existingQuiz.id);
     }
 
     // Create the quiz
-    const quiz = createQuiz(
+    const quiz = await createQuiz(
       lessonId,
       wizardData.title.trim(),
       wizardData.passingScore / 100
@@ -246,7 +246,7 @@ export async function action({ params, request }: Route.ActionArgs) {
     // Create questions and options
     for (let qi = 0; qi < wizardData.questions.length; qi++) {
       const q = wizardData.questions[qi];
-      const question = createQuestion(
+      const question = await createQuestion(
         quiz.id,
         q.text.trim(),
         q.type,
@@ -254,7 +254,7 @@ export async function action({ params, request }: Route.ActionArgs) {
       );
 
       for (const opt of q.options) {
-        createOption(question.id, opt.text.trim(), opt.isCorrect);
+        await createOption(question.id, opt.text.trim(), opt.isCorrect);
       }
     }
 
@@ -262,9 +262,9 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "delete-quiz") {
-    const existingQuiz = getQuizByLessonId(lessonId);
+    const existingQuiz = await getQuizByLessonId(lessonId);
     if (existingQuiz) {
-      deleteQuiz(existingQuiz.id);
+      await deleteQuiz(existingQuiz.id);
     }
     return { success: true, deleted: true };
   }

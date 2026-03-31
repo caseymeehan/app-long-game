@@ -36,7 +36,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const currentUser = getUserById(currentUserId);
+  const currentUser = await getUserById(currentUserId);
 
   if (!currentUser) {
     throw data("User not found.", { status: 404 });
@@ -60,7 +60,7 @@ export async function action({ request }: Route.ActionArgs) {
     throw data("You must be logged in.", { status: 401 });
   }
 
-  const currentUser = getUserById(currentUserId);
+  const currentUser = await getUserById(currentUserId);
   if (!currentUser) {
     throw data("User not found.", { status: 404 });
   }
@@ -74,7 +74,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   const { name, bio } = parsed.data;
 
-  updateUser(currentUser.id, name, currentUser.email, bio || null);
+  await updateUser(currentUser.id, name, currentUser.email, bio || null);
   return { success: true };
 }
 

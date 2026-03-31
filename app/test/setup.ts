@@ -1,30 +1,24 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import path from "path";
-import { fileURLToPath } from "url";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { sql } from "drizzle-orm";
 import * as schema from "~/db/schema";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const migrationsFolder = path.resolve(__dirname, "../../drizzle");
-
 /**
- * Creates a fresh in-memory SQLite database with all tables for testing.
- * Each call returns a new isolated database instance.
+ * Creates a connection to a test Postgres database.
+ * Requires TEST_DATABASE_URL environment variable.
  *
- * Uses the same Drizzle migrations as the live database, ensuring
- * test and production schemas are always in sync.
+ * Each call returns a new Drizzle instance connected to the test database.
+ * Tests should clean up their data after each run.
  */
 export function createTestDb() {
-  const sqlite = new Database(":memory:");
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-
-  const testDb = drizzle(sqlite, { schema });
-
-  migrate(testDb, { migrationsFolder });
-
+  const connectionString = process.env.TEST_DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      "TEST_DATABASE_URL must be set to run tests against Postgres"
+    );
+  }
+  const client = postgres(connectionString);
+  const testDb = drizzle(client, { schema });
   return testDb;
 }
 
@@ -32,34 +26,33 @@ export function createTestDb() {
  * Seeds a minimal set of base data (user, category, course) that most tests need.
  * Returns the created IDs for use in test assertions.
  */
-export function seedBaseData(testDb: ReturnType<typeof createTestDb>) {
-  const user = testDb
+export async function seedBaseData(
+  testDb: ReturnType<typeof createTestDb>
+) {
+  const [user] = await testDb
     .insert(schema.users)
     .values({
       name: "Test User",
       email: "test@example.com",
       role: schema.UserRole.Student,
     })
-    .returning()
-    .get();
+    .returning();
 
-  const instructor = testDb
+  const [instructor] = await testDb
     .insert(schema.users)
     .values({
       name: "Test Instructor",
       email: "instructor@example.com",
       role: schema.UserRole.Instructor,
     })
-    .returning()
-    .get();
+    .returning();
 
-  const category = testDb
+  const [category] = await testDb
     .insert(schema.categories)
     .values({ name: "Programming", slug: "programming" })
-    .returning()
-    .get();
+    .returning();
 
-  const course = testDb
+  const [course] = await testDb
     .insert(schema.courses)
     .values({
       title: "Test Course",
@@ -69,8 +62,7 @@ export function seedBaseData(testDb: ReturnType<typeof createTestDb>) {
       categoryId: category.id,
       status: schema.CourseStatus.Published,
     })
-    .returning()
-    .get();
+    .returning();
 
   return { user, instructor, category, course };
 }

@@ -42,7 +42,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     throw data("Select a user from the DevUI panel.", { status: 401 });
   }
 
-  const team = getTeamForAdmin(currentUserId);
+  const team = await getTeamForAdmin(currentUserId);
 
   if (!team) {
     throw data("You don't have a team. Purchase team seats to create one.", {
@@ -50,7 +50,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const allCoupons = getCouponsForTeam(team.id);
+  const allCoupons = await getCouponsForTeam(team.id);
 
   // Build per-course stats
   const courseMap = new Map<
@@ -66,7 +66,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   for (const coupon of allCoupons) {
     if (!courseMap.has(coupon.courseId)) {
-      const course = getCourseById(coupon.courseId);
+      const course = await getCourseById(coupon.courseId);
       courseMap.set(coupon.courseId, {
         courseId: coupon.courseId,
         courseTitle: course?.title ?? "Unknown Course",
@@ -93,13 +93,13 @@ export async function loader({ request }: Route.LoaderArgs) {
   );
 
   // Build coupon rows with redeemer email
-  const couponRows: CouponRow[] = allCoupons.map((coupon) => {
+  const couponRows: CouponRow[] = await Promise.all(allCoupons.map(async (coupon) => {
     let redeemedByEmail: string | null = null;
     if (coupon.redeemedByUserId !== null) {
-      const user = getUserById(coupon.redeemedByUserId);
+      const user = await getUserById(coupon.redeemedByUserId);
       redeemedByEmail = user?.email ?? null;
     }
-    const course = getCourseById(coupon.courseId);
+    const course = await getCourseById(coupon.courseId);
     return {
       id: coupon.id,
       code: coupon.code,
@@ -108,7 +108,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       redeemedByEmail,
       createdAt: coupon.createdAt,
     };
-  });
+  }));
 
   return { courseStats, couponRows };
 }

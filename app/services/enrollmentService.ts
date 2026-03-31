@@ -13,51 +13,49 @@ import {
 // Handles enrollment, unenrollment, duplicate prevention, and enrollment validation.
 // Uses positional parameters (project convention).
 
-export function getEnrollmentById(id: number) {
-  return db.select().from(enrollments).where(eq(enrollments.id, id)).get();
+export async function getEnrollmentById(id: number) {
+  const [row] = await db.select().from(enrollments).where(eq(enrollments.id, id));
+  return row;
 }
 
-export function getEnrollmentsByUser(userId: number) {
-  return db
+export async function getEnrollmentsByUser(userId: number) {
+  return await db
     .select()
     .from(enrollments)
-    .where(eq(enrollments.userId, userId))
-    .all();
+    .where(eq(enrollments.userId, userId));
 }
 
-export function getEnrollmentsByCourse(courseId: number) {
-  return db
+export async function getEnrollmentsByCourse(courseId: number) {
+  return await db
     .select()
     .from(enrollments)
-    .where(eq(enrollments.courseId, courseId))
-    .all();
+    .where(eq(enrollments.courseId, courseId));
 }
 
-export function getEnrollmentCountForCourse(courseId: number) {
-  const result = db
+export async function getEnrollmentCountForCourse(courseId: number) {
+  const [result] = await db
     .select({ count: sql<number>`count(*)` })
     .from(enrollments)
-    .where(eq(enrollments.courseId, courseId))
-    .get();
+    .where(eq(enrollments.courseId, courseId));
 
   return result?.count ?? 0;
 }
 
-export function findEnrollment(userId: number, courseId: number) {
-  return db
+export async function findEnrollment(userId: number, courseId: number) {
+  const [row] = await db
     .select()
     .from(enrollments)
     .where(
       and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId))
-    )
-    .get();
+    );
+  return row;
 }
 
-export function isUserEnrolled(userId: number, courseId: number) {
-  return !!findEnrollment(userId, courseId);
+export async function isUserEnrolled(userId: number, courseId: number) {
+  return !!(await findEnrollment(userId, courseId));
 }
 
-export function enrollUser(
+export async function enrollUser(
   userId: number,
   courseId: number,
   sendEmail: boolean,
@@ -65,27 +63,25 @@ export function enrollUser(
 ) {
   if (!skipValidation) {
     // Check if already enrolled
-    const existing = findEnrollment(userId, courseId);
+    const existing = await findEnrollment(userId, courseId);
     if (existing) {
       throw new Error("User is already enrolled in this course");
     }
 
     // Check that the course exists
-    const course = db
+    const [course] = await db
       .select()
       .from(courses)
-      .where(eq(courses.id, courseId))
-      .get();
+      .where(eq(courses.id, courseId));
     if (!course) {
       throw new Error("Course not found");
     }
   }
 
-  const enrollment = db
+  const [enrollment] = await db
     .insert(enrollments)
     .values({ userId, courseId })
-    .returning()
-    .get();
+    .returning();
 
   // sendEmail parameter accepted but not implemented (no email service — PRD out of scope)
   if (sendEmail) {
@@ -95,34 +91,34 @@ export function enrollUser(
   return enrollment;
 }
 
-export function unenrollUser(userId: number, courseId: number) {
-  const existing = findEnrollment(userId, courseId);
+export async function unenrollUser(userId: number, courseId: number) {
+  const existing = await findEnrollment(userId, courseId);
   if (!existing) {
     throw new Error("User is not enrolled in this course");
   }
 
-  return db
+  const [row] = await db
     .delete(enrollments)
     .where(
       and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId))
     )
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function markEnrollmentComplete(userId: number, courseId: number) {
-  return db
+export async function markEnrollmentComplete(userId: number, courseId: number) {
+  const [row] = await db
     .update(enrollments)
     .set({ completedAt: new Date().toISOString() })
     .where(
       and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId))
     )
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function getUserEnrolledCourses(userId: number) {
-  return db
+export async function getUserEnrolledCourses(userId: number) {
+  return await db
     .select({
       enrollmentId: enrollments.id,
       courseId: enrollments.courseId,
@@ -135,12 +131,11 @@ export function getUserEnrolledCourses(userId: number) {
     })
     .from(enrollments)
     .innerJoin(courses, eq(enrollments.courseId, courses.id))
-    .where(eq(enrollments.userId, userId))
-    .all();
+    .where(eq(enrollments.userId, userId));
 }
 
-export function getCourseEnrolledStudents(courseId: number) {
-  return db
+export async function getCourseEnrolledStudents(courseId: number) {
+  return await db
     .select({
       enrollmentId: enrollments.id,
       userId: enrollments.userId,
@@ -148,6 +143,5 @@ export function getCourseEnrolledStudents(courseId: number) {
       completedAt: enrollments.completedAt,
     })
     .from(enrollments)
-    .where(eq(enrollments.courseId, courseId))
-    .all();
+    .where(eq(enrollments.courseId, courseId));
 }

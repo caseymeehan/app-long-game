@@ -1,1 +1,0 @@
-ALTER TABLE `lessons` ADD `github_repo_url` text;

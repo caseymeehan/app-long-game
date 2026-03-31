@@ -15,50 +15,52 @@ import {
 
 // ─── Quiz CRUD ───
 
-export function getQuizById(id: number) {
-  return db.select().from(quizzes).where(eq(quizzes.id, id)).get();
+export async function getQuizById(id: number) {
+  const [row] = await db.select().from(quizzes).where(eq(quizzes.id, id));
+  return row;
 }
 
-export function getQuizByLessonId(lessonId: number) {
-  return db.select().from(quizzes).where(eq(quizzes.lessonId, lessonId)).get();
+export async function getQuizByLessonId(lessonId: number) {
+  const [row] = await db.select().from(quizzes).where(eq(quizzes.lessonId, lessonId));
+  return row;
 }
 
-export function getQuizWithQuestions(quizId: number) {
-  const quiz = getQuizById(quizId);
+export async function getQuizWithQuestions(quizId: number) {
+  const quiz = await getQuizById(quizId);
   if (!quiz) return null;
 
-  const questions = db
+  const questions = await db
     .select()
     .from(quizQuestions)
     .where(eq(quizQuestions.quizId, quizId))
-    .orderBy(quizQuestions.position)
-    .all();
+    .orderBy(quizQuestions.position);
 
-  const questionsWithOptions = questions.map((question) => {
-    const options = db
-      .select()
-      .from(quizOptions)
-      .where(eq(quizOptions.questionId, question.id))
-      .all();
-    return { ...question, options };
-  });
+  const questionsWithOptions = await Promise.all(
+    questions.map(async (question) => {
+      const options = await db
+        .select()
+        .from(quizOptions)
+        .where(eq(quizOptions.questionId, question.id));
+      return { ...question, options };
+    })
+  );
 
   return { ...quiz, questions: questionsWithOptions };
 }
 
-export function createQuiz(
+export async function createQuiz(
   lessonId: number,
   title: string,
   passingScore: number
 ) {
-  return db
+  const [row] = await db
     .insert(quizzes)
     .values({ lessonId, title, passingScore })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function updateQuiz(
+export async function updateQuiz(
   id: number,
   title: string | null,
   passingScore: number | null
@@ -68,86 +70,88 @@ export function updateQuiz(
   if (passingScore !== null) updates.passingScore = passingScore;
 
   if (Object.keys(updates).length === 0) {
-    return getQuizById(id);
+    return await getQuizById(id);
   }
 
-  return db
+  const [row] = await db
     .update(quizzes)
     .set(updates)
     .where(eq(quizzes.id, id))
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function deleteQuiz(id: number) {
+export async function deleteQuiz(id: number) {
   // Cascade: delete answers -> attempts -> options -> questions -> quiz
-  const questions = getQuestionsByQuiz(id);
+  const questions = await getQuestionsByQuiz(id);
   for (const question of questions) {
-    db.delete(quizOptions).where(eq(quizOptions.questionId, question.id)).run();
+    await db.delete(quizOptions).where(eq(quizOptions.questionId, question.id));
   }
 
-  const attempts = db
+  const attempts = await db
     .select()
     .from(quizAttempts)
-    .where(eq(quizAttempts.quizId, id))
-    .all();
+    .where(eq(quizAttempts.quizId, id));
   for (const attempt of attempts) {
-    db.delete(quizAnswers).where(eq(quizAnswers.attemptId, attempt.id)).run();
+    await db.delete(quizAnswers).where(eq(quizAnswers.attemptId, attempt.id));
   }
 
-  db.delete(quizAttempts).where(eq(quizAttempts.quizId, id)).run();
-  db.delete(quizQuestions).where(eq(quizQuestions.quizId, id)).run();
-  return db.delete(quizzes).where(eq(quizzes.id, id)).returning().get();
+  await db.delete(quizAttempts).where(eq(quizAttempts.quizId, id));
+  await db.delete(quizQuestions).where(eq(quizQuestions.quizId, id));
+  const [row] = await db.delete(quizzes).where(eq(quizzes.id, id)).returning();
+  return row;
 }
 
 // ─── Question Management ───
 
-export function getQuestionById(id: number) {
-  return db.select().from(quizQuestions).where(eq(quizQuestions.id, id)).get();
+export async function getQuestionById(id: number) {
+  const [row] = await db.select().from(quizQuestions).where(eq(quizQuestions.id, id));
+  return row;
 }
 
-export function getQuestionsByQuiz(quizId: number) {
-  return db
+export async function getQuestionsByQuiz(quizId: number) {
+  return await db
     .select()
     .from(quizQuestions)
     .where(eq(quizQuestions.quizId, quizId))
-    .orderBy(quizQuestions.position)
-    .all();
+    .orderBy(quizQuestions.position);
 }
 
-export function getQuestionCount(quizId: number) {
-  const result = db
+export async function getQuestionCount(quizId: number) {
+  const [result] = await db
     .select({ count: sql<number>`count(*)` })
     .from(quizQuestions)
-    .where(eq(quizQuestions.quizId, quizId))
-    .get();
+    .where(eq(quizQuestions.quizId, quizId));
   return result?.count ?? 0;
 }
 
-export function createQuestion(
+export async function createQuestion(
   quizId: number,
   questionText: string,
   questionType: QuestionType,
   position: number | null
 ) {
-  const pos =
-    position ??
-    db
+  let pos: number;
+  if (position !== null) {
+    pos = position;
+  } else {
+    const [maxResult] = await db
       .select({
         max: sql<number>`coalesce(max(${quizQuestions.position}), 0)`,
       })
       .from(quizQuestions)
-      .where(eq(quizQuestions.quizId, quizId))
-      .get()!.max + 1;
+      .where(eq(quizQuestions.quizId, quizId));
+    pos = maxResult!.max + 1;
+  }
 
-  return db
+  const [row] = await db
     .insert(quizQuestions)
     .values({ quizId, questionText, questionType, position: pos })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function updateQuestion(
+export async function updateQuestion(
   id: number,
   questionText: string | null,
   questionType: QuestionType | null
@@ -157,40 +161,40 @@ export function updateQuestion(
   if (questionType !== null) updates.questionType = questionType;
 
   if (Object.keys(updates).length === 0) {
-    return getQuestionById(id);
+    return await getQuestionById(id);
   }
 
-  return db
+  const [row] = await db
     .update(quizQuestions)
     .set(updates)
     .where(eq(quizQuestions.id, id))
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function deleteQuestion(id: number) {
-  db.delete(quizOptions).where(eq(quizOptions.questionId, id)).run();
-  return db
+export async function deleteQuestion(id: number) {
+  await db.delete(quizOptions).where(eq(quizOptions.questionId, id));
+  const [row] = await db
     .delete(quizQuestions)
     .where(eq(quizQuestions.id, id))
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
 // ─── Question Reordering ───
 
-export function moveQuestionToPosition(
+export async function moveQuestionToPosition(
   questionId: number,
   newPosition: number
 ) {
-  const question = getQuestionById(questionId);
+  const question = await getQuestionById(questionId);
   if (!question) return null;
 
   const oldPosition = question.position;
   if (oldPosition === newPosition) return question;
 
   if (newPosition > oldPosition) {
-    db.update(quizQuestions)
+    await db.update(quizQuestions)
       .set({ position: sql`${quizQuestions.position} - 1` })
       .where(
         and(
@@ -198,10 +202,9 @@ export function moveQuestionToPosition(
           sql`${quizQuestions.position} > ${oldPosition}`,
           sql`${quizQuestions.position} <= ${newPosition}`
         )
-      )
-      .run();
+      );
   } else {
-    db.update(quizQuestions)
+    await db.update(quizQuestions)
       .set({ position: sql`${quizQuestions.position} + 1` })
       .where(
         and(
@@ -209,60 +212,58 @@ export function moveQuestionToPosition(
           sql`${quizQuestions.position} >= ${newPosition}`,
           sql`${quizQuestions.position} < ${oldPosition}`
         )
-      )
-      .run();
+      );
   }
 
-  return db
+  const [row] = await db
     .update(quizQuestions)
     .set({ position: newPosition })
     .where(eq(quizQuestions.id, questionId))
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function reorderQuestions(quizId: number, questionIds: number[]) {
+export async function reorderQuestions(quizId: number, questionIds: number[]) {
   for (let i = 0; i < questionIds.length; i++) {
-    db.update(quizQuestions)
+    await db.update(quizQuestions)
       .set({ position: i + 1 })
       .where(
         and(
           eq(quizQuestions.id, questionIds[i]),
           eq(quizQuestions.quizId, quizId)
         )
-      )
-      .run();
+      );
   }
-  return getQuestionsByQuiz(quizId);
+  return await getQuestionsByQuiz(quizId);
 }
 
 // ─── Option Management ───
 
-export function getOptionById(id: number) {
-  return db.select().from(quizOptions).where(eq(quizOptions.id, id)).get();
+export async function getOptionById(id: number) {
+  const [row] = await db.select().from(quizOptions).where(eq(quizOptions.id, id));
+  return row;
 }
 
-export function getOptionsByQuestion(questionId: number) {
-  return db
+export async function getOptionsByQuestion(questionId: number) {
+  return await db
     .select()
     .from(quizOptions)
-    .where(eq(quizOptions.questionId, questionId))
-    .all();
+    .where(eq(quizOptions.questionId, questionId));
 }
 
-export function createOption(
+export async function createOption(
   questionId: number,
   optionText: string,
   isCorrect: boolean
 ) {
-  return db
+  const [row] = await db
     .insert(quizOptions)
     .values({ questionId, optionText, isCorrect })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function updateOption(
+export async function updateOption(
   id: number,
   optionText: string | null,
   isCorrect: boolean | null
@@ -272,108 +273,107 @@ export function updateOption(
   if (isCorrect !== null) updates.isCorrect = isCorrect;
 
   if (Object.keys(updates).length === 0) {
-    return getOptionById(id);
+    return await getOptionById(id);
   }
 
-  return db
+  const [row] = await db
     .update(quizOptions)
     .set(updates)
     .where(eq(quizOptions.id, id))
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function deleteOption(id: number) {
-  return db.delete(quizOptions).where(eq(quizOptions.id, id)).returning().get();
+export async function deleteOption(id: number) {
+  const [row] = await db.delete(quizOptions).where(eq(quizOptions.id, id)).returning();
+  return row;
 }
 
 // ─── Attempt Recording ───
 
-export function getAttemptById(id: number) {
-  return db.select().from(quizAttempts).where(eq(quizAttempts.id, id)).get();
+export async function getAttemptById(id: number) {
+  const [row] = await db.select().from(quizAttempts).where(eq(quizAttempts.id, id));
+  return row;
 }
 
-export function getAttemptsByUser(userId: number, quizId: number) {
-  return db
+export async function getAttemptsByUser(userId: number, quizId: number) {
+  return await db
     .select()
     .from(quizAttempts)
     .where(
       and(eq(quizAttempts.userId, userId), eq(quizAttempts.quizId, quizId))
     )
-    .orderBy(desc(quizAttempts.attemptedAt))
-    .all();
+    .orderBy(desc(quizAttempts.attemptedAt));
 }
 
-export function getAttemptCountForQuiz(quizId: number) {
-  const result = db
+export async function getAttemptCountForQuiz(quizId: number) {
+  const [result] = await db
     .select({ count: sql<number>`count(*)` })
     .from(quizAttempts)
-    .where(eq(quizAttempts.quizId, quizId))
-    .get();
+    .where(eq(quizAttempts.quizId, quizId));
   return result?.count ?? 0;
 }
 
-export function getBestAttempt(userId: number, quizId: number) {
-  return db
+export async function getBestAttempt(userId: number, quizId: number) {
+  const [row] = await db
     .select()
     .from(quizAttempts)
     .where(
       and(eq(quizAttempts.userId, userId), eq(quizAttempts.quizId, quizId))
     )
     .orderBy(desc(quizAttempts.score))
-    .limit(1)
-    .get();
+    .limit(1);
+  return row;
 }
 
-export function getLatestAttempt(userId: number, quizId: number) {
-  return db
+export async function getLatestAttempt(userId: number, quizId: number) {
+  const [row] = await db
     .select()
     .from(quizAttempts)
     .where(
       and(eq(quizAttempts.userId, userId), eq(quizAttempts.quizId, quizId))
     )
     .orderBy(desc(quizAttempts.attemptedAt))
-    .limit(1)
-    .get();
+    .limit(1);
+  return row;
 }
 
-export function recordAttempt(
+export async function recordAttempt(
   userId: number,
   quizId: number,
   score: number,
   passed: boolean
 ) {
-  return db
+  const [row] = await db
     .insert(quizAttempts)
     .values({ userId, quizId, score, passed })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function recordAnswer(
+export async function recordAnswer(
   attemptId: number,
   questionId: number,
   selectedOptionId: number
 ) {
-  return db
+  const [row] = await db
     .insert(quizAnswers)
     .values({ attemptId, questionId, selectedOptionId })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function getAnswersByAttempt(attemptId: number) {
-  return db
+export async function getAnswersByAttempt(attemptId: number) {
+  return await db
     .select()
     .from(quizAnswers)
-    .where(eq(quizAnswers.attemptId, attemptId))
-    .all();
+    .where(eq(quizAnswers.attemptId, attemptId));
 }
 
-export function getAttemptWithAnswers(attemptId: number) {
-  const attempt = getAttemptById(attemptId);
+export async function getAttemptWithAnswers(attemptId: number) {
+  const attempt = await getAttemptById(attemptId);
   if (!attempt) return null;
 
-  const answers = getAnswersByAttempt(attemptId);
+  const answers = await getAnswersByAttempt(attemptId);
   return { ...attempt, answers };
 }

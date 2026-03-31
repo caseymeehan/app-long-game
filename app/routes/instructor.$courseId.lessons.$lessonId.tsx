@@ -49,7 +49,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
 
   if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
     throw data("Only instructors and admins can access this page.", {
@@ -62,7 +62,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Invalid course ID.", { status: 400 });
   }
 
-  const course = getCourseById(courseId);
+  const course = await getCourseById(courseId);
 
   if (!course) {
     throw data("Course not found.", { status: 404 });
@@ -77,17 +77,17 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Invalid lesson ID.", { status: 400 });
   }
 
-  const lesson = getLessonById(lessonId);
+  const lesson = await getLessonById(lessonId);
   if (!lesson) {
     throw data("Lesson not found.", { status: 404 });
   }
 
-  const mod = getModuleById(lesson.moduleId);
+  const mod = await getModuleById(lesson.moduleId);
   if (!mod || mod.courseId !== courseId) {
     throw data("Lesson not found in this course.", { status: 404 });
   }
 
-  const quiz = getQuizByLessonId(lessonId);
+  const quiz = await getQuizByLessonId(lessonId);
 
   return { course, lesson, module: mod, quiz };
 }
@@ -99,14 +99,14 @@ export async function action({ params, request }: Route.ActionArgs) {
     throw data("You must be logged in.", { status: 401 });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
   if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
     throw data("Only instructors and admins can edit lessons.", { status: 403 });
   }
 
   const { courseId, lessonId } = parseParams(params, instructorLessonParamsSchema);
 
-  const course = getCourseById(courseId);
+  const course = await getCourseById(courseId);
   if (!course) {
     throw data("Course not found.", { status: 404 });
   }
@@ -115,12 +115,12 @@ export async function action({ params, request }: Route.ActionArgs) {
     throw data("You can only edit your own courses.", { status: 403 });
   }
 
-  const lesson = getLessonById(lessonId);
+  const lesson = await getLessonById(lessonId);
   if (!lesson) {
     throw data("Lesson not found.", { status: 404 });
   }
 
-  const mod = getModuleById(lesson.moduleId);
+  const mod = await getModuleById(lesson.moduleId);
   if (!mod || mod.courseId !== courseId) {
     throw data("Lesson not found in this course.", { status: 404 });
   }
@@ -140,7 +140,7 @@ export async function action({ params, request }: Route.ActionArgs) {
       return data({ error: "Duration must be a positive number." }, { status: 400 });
     }
 
-    updateLesson(lessonId, null, content ?? null, videoUrl || null, durationMinutes, githubRepoUrl || null);
+    await updateLesson(lessonId, null, content ?? null, videoUrl || null, durationMinutes, githubRepoUrl || null);
     return { success: true };
   }
 

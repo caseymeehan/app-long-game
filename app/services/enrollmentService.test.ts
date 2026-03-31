@@ -3,7 +3,7 @@ import { createTestDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 
 let testDb: ReturnType<typeof createTestDb>;
-let base: ReturnType<typeof seedBaseData>;
+let base: Awaited<ReturnType<typeof seedBaseData>>;
 
 vi.mock("~/db", () => ({
   get db() {
@@ -27,14 +27,14 @@ import {
 } from "./enrollmentService";
 
 describe("enrollmentService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     testDb = createTestDb();
-    base = seedBaseData(testDb);
+    base = await seedBaseData(testDb);
   });
 
   describe("enrollUser", () => {
-    it("enrolls a user in a course", () => {
-      const enrollment = enrollUser(base.user.id, base.course.id, false, false);
+    it("enrolls a user in a course", async () => {
+      const enrollment = await enrollUser(base.user.id, base.course.id, false, false);
 
       expect(enrollment).toBeDefined();
       expect(enrollment.userId).toBe(base.user.id);
@@ -43,113 +43,113 @@ describe("enrollmentService", () => {
       expect(enrollment.completedAt).toBeNull();
     });
 
-    it("throws when enrolling a user who is already enrolled", () => {
-      enrollUser(base.user.id, base.course.id, false, false);
+    it("throws when enrolling a user who is already enrolled", async () => {
+      await enrollUser(base.user.id, base.course.id, false, false);
 
-      expect(() =>
+      await expect(
         enrollUser(base.user.id, base.course.id, false, false)
-      ).toThrowError("User is already enrolled in this course");
+      ).rejects.toThrowError("User is already enrolled in this course");
     });
 
-    it("throws when enrolling in a non-existent course", () => {
-      expect(() =>
+    it("throws when enrolling in a non-existent course", async () => {
+      await expect(
         enrollUser(base.user.id, 9999, false, false)
-      ).toThrowError("Course not found");
+      ).rejects.toThrowError("Course not found");
     });
 
-    it("skips course existence check when skipValidation is true", () => {
+    it("skips course existence check when skipValidation is true", async () => {
       // skipValidation bypasses the course existence check at the service level,
       // but the DB foreign key constraint still prevents inserting invalid references.
       // Verify it doesn't throw "Course not found" (service-level) but throws FK error instead.
-      expect(() =>
+      await expect(
         enrollUser(base.user.id, 9999, false, true)
-      ).toThrowError(); // FK constraint, not "Course not found"
+      ).rejects.toThrowError(); // FK constraint, not "Course not found"
     });
 
-    it("allows duplicate enrollment when skipValidation is true", () => {
-      enrollUser(base.user.id, base.course.id, false, false);
+    it("allows duplicate enrollment when skipValidation is true", async () => {
+      await enrollUser(base.user.id, base.course.id, false, false);
 
       // Second enrollment with skipValidation — no "already enrolled" error
-      const second = enrollUser(base.user.id, base.course.id, false, true);
+      const second = await enrollUser(base.user.id, base.course.id, false, true);
       expect(second).toBeDefined();
     });
 
-    it("accepts sendEmail parameter without error", () => {
-      const enrollment = enrollUser(base.user.id, base.course.id, true, false);
+    it("accepts sendEmail parameter without error", async () => {
+      const enrollment = await enrollUser(base.user.id, base.course.id, true, false);
       expect(enrollment).toBeDefined();
     });
   });
 
   describe("unenrollUser", () => {
-    it("unenrolls a user from a course", () => {
-      enrollUser(base.user.id, base.course.id, false, false);
+    it("unenrolls a user from a course", async () => {
+      await enrollUser(base.user.id, base.course.id, false, false);
 
-      const result = unenrollUser(base.user.id, base.course.id);
+      const result = await unenrollUser(base.user.id, base.course.id);
       expect(result).toBeDefined();
       expect(result!.userId).toBe(base.user.id);
       expect(result!.courseId).toBe(base.course.id);
     });
 
-    it("throws when unenrolling a user who is not enrolled", () => {
-      expect(() =>
+    it("throws when unenrolling a user who is not enrolled", async () => {
+      await expect(
         unenrollUser(base.user.id, base.course.id)
-      ).toThrowError("User is not enrolled in this course");
+      ).rejects.toThrowError("User is not enrolled in this course");
     });
 
-    it("removes the enrollment from the database", () => {
-      enrollUser(base.user.id, base.course.id, false, false);
-      unenrollUser(base.user.id, base.course.id);
+    it("removes the enrollment from the database", async () => {
+      await enrollUser(base.user.id, base.course.id, false, false);
+      await unenrollUser(base.user.id, base.course.id);
 
-      expect(isUserEnrolled(base.user.id, base.course.id)).toBe(false);
+      expect(await isUserEnrolled(base.user.id, base.course.id)).toBe(false);
     });
   });
 
   describe("findEnrollment", () => {
-    it("returns the enrollment when it exists", () => {
-      enrollUser(base.user.id, base.course.id, false, false);
+    it("returns the enrollment when it exists", async () => {
+      await enrollUser(base.user.id, base.course.id, false, false);
 
-      const found = findEnrollment(base.user.id, base.course.id);
+      const found = await findEnrollment(base.user.id, base.course.id);
       expect(found).toBeDefined();
       expect(found!.userId).toBe(base.user.id);
       expect(found!.courseId).toBe(base.course.id);
     });
 
-    it("returns undefined when no enrollment exists", () => {
-      const found = findEnrollment(base.user.id, base.course.id);
+    it("returns undefined when no enrollment exists", async () => {
+      const found = await findEnrollment(base.user.id, base.course.id);
       expect(found).toBeUndefined();
     });
   });
 
   describe("isUserEnrolled", () => {
-    it("returns true when user is enrolled", () => {
-      enrollUser(base.user.id, base.course.id, false, false);
+    it("returns true when user is enrolled", async () => {
+      await enrollUser(base.user.id, base.course.id, false, false);
 
-      expect(isUserEnrolled(base.user.id, base.course.id)).toBe(true);
+      expect(await isUserEnrolled(base.user.id, base.course.id)).toBe(true);
     });
 
-    it("returns false when user is not enrolled", () => {
-      expect(isUserEnrolled(base.user.id, base.course.id)).toBe(false);
+    it("returns false when user is not enrolled", async () => {
+      expect(await isUserEnrolled(base.user.id, base.course.id)).toBe(false);
     });
   });
 
   describe("getEnrollmentById", () => {
-    it("returns enrollment by id", () => {
-      const created = enrollUser(base.user.id, base.course.id, false, false);
+    it("returns enrollment by id", async () => {
+      const created = await enrollUser(base.user.id, base.course.id, false, false);
 
-      const found = getEnrollmentById(created.id);
+      const found = await getEnrollmentById(created.id);
       expect(found).toBeDefined();
       expect(found!.id).toBe(created.id);
     });
 
-    it("returns undefined for non-existent id", () => {
-      expect(getEnrollmentById(9999)).toBeUndefined();
+    it("returns undefined for non-existent id", async () => {
+      expect(await getEnrollmentById(9999)).toBeUndefined();
     });
   });
 
   describe("getEnrollmentsByUser", () => {
-    it("returns all enrollments for a user", () => {
+    it("returns all enrollments for a user", async () => {
       // Create a second course
-      const course2 = testDb
+      const [course2] = await testDb
         .insert(schema.courses)
         .values({
           title: "Second Course",
@@ -159,62 +159,60 @@ describe("enrollmentService", () => {
           categoryId: base.category.id,
           status: schema.CourseStatus.Published,
         })
-        .returning()
-        .get();
+        .returning();
 
-      enrollUser(base.user.id, base.course.id, false, false);
-      enrollUser(base.user.id, course2.id, false, false);
+      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser(base.user.id, course2.id, false, false);
 
-      const enrollmentsList = getEnrollmentsByUser(base.user.id);
+      const enrollmentsList = await getEnrollmentsByUser(base.user.id);
       expect(enrollmentsList).toHaveLength(2);
     });
 
-    it("returns empty array when user has no enrollments", () => {
-      expect(getEnrollmentsByUser(base.user.id)).toHaveLength(0);
+    it("returns empty array when user has no enrollments", async () => {
+      expect(await getEnrollmentsByUser(base.user.id)).toHaveLength(0);
     });
   });
 
   describe("getEnrollmentsByCourse", () => {
-    it("returns all enrollments for a course", () => {
-      const student2 = testDb
+    it("returns all enrollments for a course", async () => {
+      const [student2] = await testDb
         .insert(schema.users)
         .values({
           name: "Student Two",
           email: "student2@example.com",
           role: schema.UserRole.Student,
         })
-        .returning()
-        .get();
+        .returning();
 
-      enrollUser(base.user.id, base.course.id, false, false);
-      enrollUser(student2.id, base.course.id, false, false);
+      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser(student2.id, base.course.id, false, false);
 
-      const enrollmentsList = getEnrollmentsByCourse(base.course.id);
+      const enrollmentsList = await getEnrollmentsByCourse(base.course.id);
       expect(enrollmentsList).toHaveLength(2);
     });
 
-    it("returns empty array when course has no enrollments", () => {
-      expect(getEnrollmentsByCourse(base.course.id)).toHaveLength(0);
+    it("returns empty array when course has no enrollments", async () => {
+      expect(await getEnrollmentsByCourse(base.course.id)).toHaveLength(0);
     });
   });
 
   describe("getEnrollmentCountForCourse", () => {
-    it("returns the count of enrollments", () => {
-      enrollUser(base.user.id, base.course.id, false, false);
+    it("returns the count of enrollments", async () => {
+      await enrollUser(base.user.id, base.course.id, false, false);
 
-      expect(getEnrollmentCountForCourse(base.course.id)).toBe(1);
+      expect(await getEnrollmentCountForCourse(base.course.id)).toBe(1);
     });
 
-    it("returns 0 when no enrollments exist", () => {
-      expect(getEnrollmentCountForCourse(base.course.id)).toBe(0);
+    it("returns 0 when no enrollments exist", async () => {
+      expect(await getEnrollmentCountForCourse(base.course.id)).toBe(0);
     });
   });
 
   describe("markEnrollmentComplete", () => {
-    it("sets completedAt on the enrollment", () => {
-      enrollUser(base.user.id, base.course.id, false, false);
+    it("sets completedAt on the enrollment", async () => {
+      await enrollUser(base.user.id, base.course.id, false, false);
 
-      const result = markEnrollmentComplete(base.user.id, base.course.id);
+      const result = await markEnrollmentComplete(base.user.id, base.course.id);
       expect(result).toBeDefined();
       expect(result!.completedAt).toBeDefined();
       expect(result!.completedAt).not.toBeNull();
@@ -222,32 +220,32 @@ describe("enrollmentService", () => {
   });
 
   describe("getUserEnrolledCourses", () => {
-    it("returns enrolled courses with course details", () => {
-      enrollUser(base.user.id, base.course.id, false, false);
+    it("returns enrolled courses with course details", async () => {
+      await enrollUser(base.user.id, base.course.id, false, false);
 
-      const courses = getUserEnrolledCourses(base.user.id);
+      const courses = await getUserEnrolledCourses(base.user.id);
       expect(courses).toHaveLength(1);
       expect(courses[0].courseTitle).toBe("Test Course");
       expect(courses[0].courseSlug).toBe("test-course");
       expect(courses[0].courseDescription).toBe("A test course");
     });
 
-    it("returns empty array when user has no enrollments", () => {
-      expect(getUserEnrolledCourses(base.user.id)).toHaveLength(0);
+    it("returns empty array when user has no enrollments", async () => {
+      expect(await getUserEnrolledCourses(base.user.id)).toHaveLength(0);
     });
   });
 
   describe("getCourseEnrolledStudents", () => {
-    it("returns enrolled students for a course", () => {
-      enrollUser(base.user.id, base.course.id, false, false);
+    it("returns enrolled students for a course", async () => {
+      await enrollUser(base.user.id, base.course.id, false, false);
 
-      const students = getCourseEnrolledStudents(base.course.id);
+      const students = await getCourseEnrolledStudents(base.course.id);
       expect(students).toHaveLength(1);
       expect(students[0].userId).toBe(base.user.id);
     });
 
-    it("returns empty array when course has no enrollments", () => {
-      expect(getCourseEnrolledStudents(base.course.id)).toHaveLength(0);
+    it("returns empty array when course has no enrollments", async () => {
+      expect(await getCourseEnrolledStudents(base.course.id)).toHaveLength(0);
     });
   });
 });

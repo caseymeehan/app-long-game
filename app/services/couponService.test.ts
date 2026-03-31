@@ -3,7 +3,7 @@ import { createTestDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 
 let testDb: ReturnType<typeof createTestDb>;
-let base: ReturnType<typeof seedBaseData>;
+let base: Awaited<ReturnType<typeof seedBaseData>>;
 
 vi.mock("~/db", () => ({
   get db() {
@@ -20,19 +20,18 @@ import {
 } from "./couponService";
 
 // Helper: create a team with admin and a purchase for coupon generation
-function setupTeamAndPurchase(country: string | null = "US") {
-  const team = testDb.insert(schema.teams).values({}).returning().get();
+async function setupTeamAndPurchase(country: string | null = "US") {
+  const [team] = await testDb.insert(schema.teams).values({}).returning();
 
-  testDb
+  await testDb
     .insert(schema.teamMembers)
     .values({
       teamId: team.id,
       userId: base.user.id,
       role: schema.TeamMemberRole.Admin,
-    })
-    .run();
+    });
 
-  const purchase = testDb
+  const [purchase] = await testDb
     .insert(schema.purchases)
     .values({
       userId: base.user.id,
@@ -40,54 +39,53 @@ function setupTeamAndPurchase(country: string | null = "US") {
       pricePaid: 10000,
       country,
     })
-    .returning()
-    .get();
+    .returning();
 
   return { team, purchase };
 }
 
 // Helper: create a second user (the redeemer)
-function createRedeemer() {
-  return testDb
+async function createRedeemer() {
+  const [redeemer] = await testDb
     .insert(schema.users)
     .values({
       name: "Redeemer",
       email: "redeemer@example.com",
       role: schema.UserRole.Student,
     })
-    .returning()
-    .get();
+    .returning();
+  return redeemer;
 }
 
 describe("couponService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     testDb = createTestDb();
-    base = seedBaseData(testDb);
+    base = await seedBaseData(testDb);
   });
 
   describe("generateCoupons", () => {
-    it("generates the requested number of coupons", () => {
-      const { team, purchase } = setupTeamAndPurchase();
+    it("generates the requested number of coupons", async () => {
+      const { team, purchase } = await setupTeamAndPurchase();
 
-      const result = generateCoupons(team.id, base.course.id, purchase.id, 5);
+      const result = await generateCoupons(team.id, base.course.id, purchase.id, 5);
 
       expect(result).toHaveLength(5);
     });
 
-    it("generates unique codes for each coupon", () => {
-      const { team, purchase } = setupTeamAndPurchase();
+    it("generates unique codes for each coupon", async () => {
+      const { team, purchase } = await setupTeamAndPurchase();
 
-      const result = generateCoupons(team.id, base.course.id, purchase.id, 10);
+      const result = await generateCoupons(team.id, base.course.id, purchase.id, 10);
       const codes = result.map((c) => c.code);
       const uniqueCodes = new Set(codes);
 
       expect(uniqueCodes.size).toBe(10);
     });
 
-    it("associates coupons with the correct team, course, and purchase", () => {
-      const { team, purchase } = setupTeamAndPurchase();
+    it("associates coupons with the correct team, course, and purchase", async () => {
+      const { team, purchase } = await setupTeamAndPurchase();
 
-      const result = generateCoupons(team.id, base.course.id, purchase.id, 1);
+      const result = await generateCoupons(team.id, base.course.id, purchase.id, 1);
 
       expect(result[0].teamId).toBe(team.id);
       expect(result[0].courseId).toBe(base.course.id);
@@ -98,38 +96,39 @@ describe("couponService", () => {
   });
 
   describe("getCouponByCode", () => {
-    it("returns a coupon by its code", () => {
-      const { team, purchase } = setupTeamAndPurchase();
-      const [coupon] = generateCoupons(team.id, base.course.id, purchase.id, 1);
+    it("returns a coupon by its code", async () => {
+      const { team, purchase } = await setupTeamAndPurchase();
+      const coupons = await generateCoupons(team.id, base.course.id, purchase.id, 1);
+      const coupon = coupons[0];
 
-      const found = getCouponByCode(coupon.code);
+      const found = await getCouponByCode(coupon.code);
 
       expect(found).toBeDefined();
       expect(found!.id).toBe(coupon.id);
     });
 
-    it("returns undefined for a nonexistent code", () => {
-      const found = getCouponByCode("nonexistent-code");
+    it("returns undefined for a nonexistent code", async () => {
+      const found = await getCouponByCode("nonexistent-code");
 
       expect(found).toBeUndefined();
     });
   });
 
   describe("getCouponsForTeam", () => {
-    it("returns all coupons for a team", () => {
-      const { team, purchase } = setupTeamAndPurchase();
-      generateCoupons(team.id, base.course.id, purchase.id, 3);
+    it("returns all coupons for a team", async () => {
+      const { team, purchase } = await setupTeamAndPurchase();
+      await generateCoupons(team.id, base.course.id, purchase.id, 3);
 
-      const result = getCouponsForTeam(team.id);
+      const result = await getCouponsForTeam(team.id);
 
       expect(result).toHaveLength(3);
     });
 
-    it("filters coupons by course when courseId is provided", () => {
-      const { team, purchase } = setupTeamAndPurchase();
+    it("filters coupons by course when courseId is provided", async () => {
+      const { team, purchase } = await setupTeamAndPurchase();
 
       // Create a second course
-      const course2 = testDb
+      const [course2] = await testDb
         .insert(schema.courses)
         .values({
           title: "Second Course",
@@ -139,10 +138,9 @@ describe("couponService", () => {
           categoryId: base.category.id,
           status: schema.CourseStatus.Published,
         })
-        .returning()
-        .get();
+        .returning();
 
-      const purchase2 = testDb
+      const [purchase2] = await testDb
         .insert(schema.purchases)
         .values({
           userId: base.user.id,
@@ -150,30 +148,30 @@ describe("couponService", () => {
           pricePaid: 5000,
           country: "US",
         })
-        .returning()
-        .get();
+        .returning();
 
-      generateCoupons(team.id, base.course.id, purchase.id, 3);
-      generateCoupons(team.id, course2.id, purchase2.id, 2);
+      await generateCoupons(team.id, base.course.id, purchase.id, 3);
+      await generateCoupons(team.id, course2.id, purchase2.id, 2);
 
-      const filtered = getCouponsForTeam(team.id, base.course.id);
+      const filtered = await getCouponsForTeam(team.id, base.course.id);
       expect(filtered).toHaveLength(3);
 
-      const filtered2 = getCouponsForTeam(team.id, course2.id);
+      const filtered2 = await getCouponsForTeam(team.id, course2.id);
       expect(filtered2).toHaveLength(2);
 
-      const all = getCouponsForTeam(team.id);
+      const all = await getCouponsForTeam(team.id);
       expect(all).toHaveLength(5);
     });
   });
 
   describe("redeemCoupon", () => {
-    it("redeems a valid coupon and enrolls the user", () => {
-      const { team, purchase } = setupTeamAndPurchase();
-      const [coupon] = generateCoupons(team.id, base.course.id, purchase.id, 1);
-      const redeemer = createRedeemer();
+    it("redeems a valid coupon and enrolls the user", async () => {
+      const { team, purchase } = await setupTeamAndPurchase();
+      const coupons = await generateCoupons(team.id, base.course.id, purchase.id, 1);
+      const coupon = coupons[0];
+      const redeemer = await createRedeemer();
 
-      const result = redeemCoupon(coupon.code, redeemer.id, "US");
+      const result = await redeemCoupon(coupon.code, redeemer.id, "US");
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -182,13 +180,13 @@ describe("couponService", () => {
       }
 
       // Verify coupon is marked as redeemed
-      const updated = getCouponByCode(coupon.code);
+      const updated = await getCouponByCode(coupon.code);
       expect(updated!.redeemedByUserId).toBe(redeemer.id);
       expect(updated!.redeemedAt).toBeDefined();
     });
 
-    it("rejects redemption of a nonexistent code", () => {
-      const result = redeemCoupon("nonexistent-code", 999, "US");
+    it("rejects redemption of a nonexistent code", async () => {
+      const result = await redeemCoupon("nonexistent-code", 999, "US");
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -196,26 +194,26 @@ describe("couponService", () => {
       }
     });
 
-    it("rejects redemption of an already-consumed coupon", () => {
-      const { team, purchase } = setupTeamAndPurchase();
-      const [coupon] = generateCoupons(team.id, base.course.id, purchase.id, 1);
-      const redeemer = createRedeemer();
+    it("rejects redemption of an already-consumed coupon", async () => {
+      const { team, purchase } = await setupTeamAndPurchase();
+      const coupons = await generateCoupons(team.id, base.course.id, purchase.id, 1);
+      const coupon = coupons[0];
+      const redeemer = await createRedeemer();
 
       // First redemption succeeds
-      redeemCoupon(coupon.code, redeemer.id, "US");
+      await redeemCoupon(coupon.code, redeemer.id, "US");
 
       // Second redemption (different user) fails
-      const anotherUser = testDb
+      const [anotherUser] = await testDb
         .insert(schema.users)
         .values({
           name: "Another User",
           email: "another@example.com",
           role: schema.UserRole.Student,
         })
-        .returning()
-        .get();
+        .returning();
 
-      const result = redeemCoupon(coupon.code, anotherUser.id, "US");
+      const result = await redeemCoupon(coupon.code, anotherUser.id, "US");
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -223,18 +221,18 @@ describe("couponService", () => {
       }
     });
 
-    it("rejects redemption when user is already enrolled (coupon stays unconsumed)", () => {
-      const { team, purchase } = setupTeamAndPurchase();
-      const [coupon] = generateCoupons(team.id, base.course.id, purchase.id, 1);
-      const redeemer = createRedeemer();
+    it("rejects redemption when user is already enrolled (coupon stays unconsumed)", async () => {
+      const { team, purchase } = await setupTeamAndPurchase();
+      const coupons = await generateCoupons(team.id, base.course.id, purchase.id, 1);
+      const coupon = coupons[0];
+      const redeemer = await createRedeemer();
 
       // Enroll the user first (outside the coupon flow)
-      testDb
+      await testDb
         .insert(schema.enrollments)
-        .values({ userId: redeemer.id, courseId: base.course.id })
-        .run();
+        .values({ userId: redeemer.id, courseId: base.course.id });
 
-      const result = redeemCoupon(coupon.code, redeemer.id, "US");
+      const result = await redeemCoupon(coupon.code, redeemer.id, "US");
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -242,16 +240,17 @@ describe("couponService", () => {
       }
 
       // Verify coupon is NOT consumed
-      const unchanged = getCouponByCode(coupon.code);
+      const unchanged = await getCouponByCode(coupon.code);
       expect(unchanged!.redeemedByUserId).toBeNull();
     });
 
-    it("rejects redemption from a different country", () => {
-      const { team, purchase } = setupTeamAndPurchase("US");
-      const [coupon] = generateCoupons(team.id, base.course.id, purchase.id, 1);
-      const redeemer = createRedeemer();
+    it("rejects redemption from a different country", async () => {
+      const { team, purchase } = await setupTeamAndPurchase("US");
+      const coupons = await generateCoupons(team.id, base.course.id, purchase.id, 1);
+      const coupon = coupons[0];
+      const redeemer = await createRedeemer();
 
-      const result = redeemCoupon(coupon.code, redeemer.id, "PL");
+      const result = await redeemCoupon(coupon.code, redeemer.id, "PL");
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -261,16 +260,17 @@ describe("couponService", () => {
       }
 
       // Verify coupon is NOT consumed
-      const unchanged = getCouponByCode(coupon.code);
+      const unchanged = await getCouponByCode(coupon.code);
       expect(unchanged!.redeemedByUserId).toBeNull();
     });
 
-    it("allows redemption when purchase has no country set", () => {
-      const { team, purchase } = setupTeamAndPurchase(null);
-      const [coupon] = generateCoupons(team.id, base.course.id, purchase.id, 1);
-      const redeemer = createRedeemer();
+    it("allows redemption when purchase has no country set", async () => {
+      const { team, purchase } = await setupTeamAndPurchase(null);
+      const coupons = await generateCoupons(team.id, base.course.id, purchase.id, 1);
+      const coupon = coupons[0];
+      const redeemer = await createRedeemer();
 
-      const result = redeemCoupon(coupon.code, redeemer.id, "PL");
+      const result = await redeemCoupon(coupon.code, redeemer.id, "PL");
 
       expect(result.ok).toBe(true);
     });

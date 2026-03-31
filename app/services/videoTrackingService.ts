@@ -6,13 +6,13 @@ import { videoWatchEvents, lessons } from "~/db/schema";
 // Logs video watch events and calculates watch progress per lesson.
 // Uses positional parameters (project convention).
 
-export function logWatchEvent(
+export async function logWatchEvent(
   userId: number,
   lessonId: number,
   eventType: string,
   positionSeconds: number
 ) {
-  return db
+  const [row] = await db
     .insert(videoWatchEvents)
     .values({
       userId,
@@ -20,11 +20,11 @@ export function logWatchEvent(
       eventType,
       positionSeconds,
     })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function getWatchEvents(userId: number, lessonId: number) {
+export async function getWatchEvents(userId: number, lessonId: number) {
   return db
     .select()
     .from(videoWatchEvents)
@@ -34,12 +34,11 @@ export function getWatchEvents(userId: number, lessonId: number) {
         eq(videoWatchEvents.lessonId, lessonId)
       )
     )
-    .orderBy(videoWatchEvents.createdAt)
-    .all();
+    .orderBy(videoWatchEvents.createdAt);
 }
 
-export function getLastWatchPosition(userId: number, lessonId: number) {
-  const lastEvent = db
+export async function getLastWatchPosition(userId: number, lessonId: number) {
+  const [lastEvent] = await db
     .select()
     .from(videoWatchEvents)
     .where(
@@ -49,14 +48,13 @@ export function getLastWatchPosition(userId: number, lessonId: number) {
       )
     )
     .orderBy(desc(videoWatchEvents.createdAt))
-    .limit(1)
-    .get();
+    .limit(1);
 
   return lastEvent?.positionSeconds ?? 0;
 }
 
-export function getWatchEventCount(userId: number, lessonId: number) {
-  const result = db
+export async function getWatchEventCount(userId: number, lessonId: number) {
+  const [result] = await db
     .select({ count: sql<number>`count(*)` })
     .from(videoWatchEvents)
     .where(
@@ -64,14 +62,13 @@ export function getWatchEventCount(userId: number, lessonId: number) {
         eq(videoWatchEvents.userId, userId),
         eq(videoWatchEvents.lessonId, lessonId)
       )
-    )
-    .get();
+    );
 
   return result?.count ?? 0;
 }
 
-export function getMaxWatchPosition(userId: number, lessonId: number) {
-  const result = db
+export async function getMaxWatchPosition(userId: number, lessonId: number) {
+  const [result] = await db
     .select({ maxPos: sql<number>`max(${videoWatchEvents.positionSeconds})` })
     .from(videoWatchEvents)
     .where(
@@ -79,20 +76,19 @@ export function getMaxWatchPosition(userId: number, lessonId: number) {
         eq(videoWatchEvents.userId, userId),
         eq(videoWatchEvents.lessonId, lessonId)
       )
-    )
-    .get();
+    );
 
   return result?.maxPos ?? 0;
 }
 
-export function calculateWatchProgress(
+export async function calculateWatchProgress(
   userId: number,
   lessonId: number,
   videoDurationSeconds: number
 ) {
   if (videoDurationSeconds <= 0) return 0;
 
-  const maxPosition = getMaxWatchPosition(userId, lessonId);
+  const maxPosition = await getMaxWatchPosition(userId, lessonId);
   const progress = Math.min(
     Math.round((maxPosition / videoDurationSeconds) * 100),
     100
@@ -101,18 +97,18 @@ export function calculateWatchProgress(
   return progress;
 }
 
-export function hasUserWatchedVideo(userId: number, lessonId: number) {
-  const count = getWatchEventCount(userId, lessonId);
+export async function hasUserWatchedVideo(userId: number, lessonId: number) {
+  const count = await getWatchEventCount(userId, lessonId);
   return count > 0;
 }
 
-export function hasUserCompletedVideo(
+export async function hasUserCompletedVideo(
   userId: number,
   lessonId: number,
   videoDurationSeconds: number,
   completionThreshold: number
 ) {
-  const progress = calculateWatchProgress(
+  const progress = await calculateWatchProgress(
     userId,
     lessonId,
     videoDurationSeconds
@@ -120,7 +116,7 @@ export function hasUserCompletedVideo(
   return progress >= completionThreshold;
 }
 
-export function getUserWatchHistory(userId: number) {
+export async function getUserWatchHistory(userId: number) {
   return db
     .select({
       lessonId: videoWatchEvents.lessonId,
@@ -130,11 +126,10 @@ export function getUserWatchHistory(userId: number) {
     })
     .from(videoWatchEvents)
     .where(eq(videoWatchEvents.userId, userId))
-    .groupBy(videoWatchEvents.lessonId)
-    .all();
+    .groupBy(videoWatchEvents.lessonId);
 }
 
-export function deleteWatchEvents(userId: number, lessonId: number) {
+export async function deleteWatchEvents(userId: number, lessonId: number) {
   return db
     .delete(videoWatchEvents)
     .where(
@@ -143,6 +138,5 @@ export function deleteWatchEvents(userId: number, lessonId: number) {
         eq(videoWatchEvents.lessonId, lessonId)
       )
     )
-    .returning()
-    .all();
+    .returning();
 }

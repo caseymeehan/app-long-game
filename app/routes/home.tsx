@@ -21,15 +21,17 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const courses = buildCourseQuery(null, null, CourseStatus.Published, "newest", 50, 0);
-  const featured = courses.slice(0, 3).map((course) => ({
-    ...course,
-    lessonCount: getLessonCountForCourse(course.id),
-  }));
-  const categories = getAllCategories();
-  const users = getAllUsers();
+  const courses = await buildCourseQuery(null, null, CourseStatus.Published, "newest", 50, 0);
+  const featured = await Promise.all(
+    courses.slice(0, 3).map(async (course) => ({
+      ...course,
+      lessonCount: await getLessonCountForCourse(course.id),
+    }))
+  );
+  const categories = await getAllCategories();
+  const users = await getAllUsers();
   const currentUserId = await getCurrentUserId(request);
-  const currentUser = currentUserId ? getUserById(currentUserId) : null;
+  const currentUser = currentUserId ? await getUserById(currentUserId) : null;
   const devCountry = await getDevCountry(request);
   const countryTierInfo = getCountryTierInfo(devCountry);
 

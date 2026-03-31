@@ -13,8 +13,8 @@ import {
 // Handles lesson completion tracking and course progress calculation.
 // Uses positional parameters (project convention).
 
-export function getLessonProgress(userId: number, lessonId: number) {
-  return db
+export async function getLessonProgress(userId: number, lessonId: number) {
+  const [row] = await db
     .select()
     .from(lessonProgress)
     .where(
@@ -22,24 +22,22 @@ export function getLessonProgress(userId: number, lessonId: number) {
         eq(lessonProgress.userId, userId),
         eq(lessonProgress.lessonId, lessonId)
       )
-    )
-    .get();
+    );
+  return row;
 }
 
-export function getLessonProgressForCourse(userId: number, courseId: number) {
-  const courseModules = db
+export async function getLessonProgressForCourse(userId: number, courseId: number) {
+  const courseModules = await db
     .select({ id: modules.id })
     .from(modules)
-    .where(eq(modules.courseId, courseId))
-    .all();
+    .where(eq(modules.courseId, courseId));
 
   if (courseModules.length === 0) return [];
 
-  const courseLessons = db
+  const courseLessons = await db
     .select({ id: lessons.id })
     .from(lessons)
-    .where(or(...courseModules.map((m) => eq(lessons.moduleId, m.id)))!)
-    .all();
+    .where(or(...courseModules.map((m) => eq(lessons.moduleId, m.id)))!);
 
   if (courseLessons.length === 0) return [];
 
@@ -51,26 +49,25 @@ export function getLessonProgressForCourse(userId: number, courseId: number) {
         eq(lessonProgress.userId, userId),
         or(...courseLessons.map((l) => eq(lessonProgress.lessonId, l.id)))!
       )
-    )
-    .all();
+    );
 }
 
-export function markLessonComplete(userId: number, lessonId: number) {
-  const existing = getLessonProgress(userId, lessonId);
+export async function markLessonComplete(userId: number, lessonId: number) {
+  const existing = await getLessonProgress(userId, lessonId);
 
   if (existing) {
-    return db
+    const [row] = await db
       .update(lessonProgress)
       .set({
         status: LessonProgressStatus.Completed,
         completedAt: new Date().toISOString(),
       })
       .where(eq(lessonProgress.id, existing.id))
-      .returning()
-      .get();
+      .returning();
+    return row;
   }
 
-  return db
+  const [row] = await db
     .insert(lessonProgress)
     .values({
       userId,
@@ -78,38 +75,38 @@ export function markLessonComplete(userId: number, lessonId: number) {
       status: LessonProgressStatus.Completed,
       completedAt: new Date().toISOString(),
     })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function markLessonInProgress(userId: number, lessonId: number) {
-  const existing = getLessonProgress(userId, lessonId);
+export async function markLessonInProgress(userId: number, lessonId: number) {
+  const existing = await getLessonProgress(userId, lessonId);
 
   if (existing) {
     if (existing.status === LessonProgressStatus.Completed) {
       return existing;
     }
-    return db
+    const [row] = await db
       .update(lessonProgress)
       .set({ status: LessonProgressStatus.InProgress })
       .where(eq(lessonProgress.id, existing.id))
-      .returning()
-      .get();
+      .returning();
+    return row;
   }
 
-  return db
+  const [row] = await db
     .insert(lessonProgress)
     .values({
       userId,
       lessonId,
       status: LessonProgressStatus.InProgress,
     })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function resetLessonProgress(userId: number, lessonId: number) {
-  return db
+export async function resetLessonProgress(userId: number, lessonId: number) {
+  const [row] = await db
     .delete(lessonProgress)
     .where(
       and(
@@ -117,47 +114,44 @@ export function resetLessonProgress(userId: number, lessonId: number) {
         eq(lessonProgress.lessonId, lessonId)
       )
     )
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-function getCourseLessonIds(courseId: number): number[] {
-  const courseModules = db
+async function getCourseLessonIds(courseId: number): Promise<number[]> {
+  const courseModules = await db
     .select({ id: modules.id })
     .from(modules)
-    .where(eq(modules.courseId, courseId))
-    .all();
+    .where(eq(modules.courseId, courseId));
 
   if (courseModules.length === 0) return [];
 
-  const courseLessons = db
+  const courseLessons = await db
     .select({ id: lessons.id })
     .from(lessons)
-    .where(or(...courseModules.map((m) => eq(lessons.moduleId, m.id)))!)
-    .all();
+    .where(or(...courseModules.map((m) => eq(lessons.moduleId, m.id)))!);
 
   return courseLessons.map((l) => l.id);
 }
 
-export function calculateProgress(
+export async function calculateProgress(
   userId: number,
   courseId: number,
   includeQuizzes: boolean,
   weightByDuration: boolean
 ) {
-  const lessonIds = getCourseLessonIds(courseId);
+  const lessonIds = await getCourseLessonIds(courseId);
 
   if (lessonIds.length === 0) return 0;
 
   if (weightByDuration) {
-    const courseLessons = db
+    const courseLessons = await db
       .select({
         id: lessons.id,
         durationMinutes: lessons.durationMinutes,
       })
       .from(lessons)
-      .where(or(...lessonIds.map((id) => eq(lessons.id, id)))!)
-      .all();
+      .where(or(...lessonIds.map((id) => eq(lessons.id, id)))!);
 
     const totalDuration = courseLessons.reduce(
       (sum, l) => sum + (l.durationMinutes ?? 1),
@@ -166,7 +160,7 @@ export function calculateProgress(
 
     if (totalDuration === 0) return 0;
 
-    const completed = db
+    const completed = await db
       .select()
       .from(lessonProgress)
       .where(
@@ -175,8 +169,7 @@ export function calculateProgress(
           eq(lessonProgress.status, LessonProgressStatus.Completed),
           or(...lessonIds.map((id) => eq(lessonProgress.lessonId, id)))!
         )
-      )
-      .all();
+      );
 
     const completedIds = new Set(completed.map((p) => p.lessonId));
 
@@ -187,7 +180,7 @@ export function calculateProgress(
     return Math.round((completedDuration / totalDuration) * 100);
   }
 
-  const completedCount = db
+  const [completedCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(lessonProgress)
     .where(
@@ -196,17 +189,16 @@ export function calculateProgress(
         eq(lessonProgress.status, LessonProgressStatus.Completed),
         or(...lessonIds.map((id) => eq(lessonProgress.lessonId, id)))!
       )
-    )
-    .get();
+    );
 
   return Math.round(((completedCount?.count ?? 0) / lessonIds.length) * 100);
 }
 
-export function getCompletedLessonCount(userId: number, courseId: number) {
-  const lessonIds = getCourseLessonIds(courseId);
+export async function getCompletedLessonCount(userId: number, courseId: number) {
+  const lessonIds = await getCourseLessonIds(courseId);
   if (lessonIds.length === 0) return 0;
 
-  const result = db
+  const [result] = await db
     .select({ count: sql<number>`count(*)` })
     .from(lessonProgress)
     .where(
@@ -215,41 +207,38 @@ export function getCompletedLessonCount(userId: number, courseId: number) {
         eq(lessonProgress.status, LessonProgressStatus.Completed),
         or(...lessonIds.map((id) => eq(lessonProgress.lessonId, id)))!
       )
-    )
-    .get();
+    );
 
   return result?.count ?? 0;
 }
 
-export function getTotalLessonCount(courseId: number) {
-  return getCourseLessonIds(courseId).length;
+export async function getTotalLessonCount(courseId: number) {
+  return (await getCourseLessonIds(courseId)).length;
 }
 
-export function isLessonCompleted(userId: number, lessonId: number) {
-  const progress = getLessonProgress(userId, lessonId);
+export async function isLessonCompleted(userId: number, lessonId: number) {
+  const progress = await getLessonProgress(userId, lessonId);
   return progress?.status === LessonProgressStatus.Completed;
 }
 
-export function getNextIncompleteLesson(userId: number, courseId: number) {
-  const courseModules = db
+export async function getNextIncompleteLesson(userId: number, courseId: number) {
+  const courseModules = await db
     .select()
     .from(modules)
     .where(eq(modules.courseId, courseId))
-    .orderBy(modules.position)
-    .all();
+    .orderBy(modules.position);
 
   if (courseModules.length === 0) return null;
 
   for (const mod of courseModules) {
-    const moduleLessons = db
+    const moduleLessons = await db
       .select()
       .from(lessons)
       .where(eq(lessons.moduleId, mod.id))
-      .orderBy(lessons.position)
-      .all();
+      .orderBy(lessons.position);
 
     for (const lesson of moduleLessons) {
-      const progress = getLessonProgress(userId, lesson.id);
+      const progress = await getLessonProgress(userId, lesson.id);
       if (!progress || progress.status !== LessonProgressStatus.Completed) {
         return lesson;
       }
@@ -259,7 +248,7 @@ export function getNextIncompleteLesson(userId: number, courseId: number) {
   return null;
 }
 
-export function getRecentlyProgressedCourses(
+export async function getRecentlyProgressedCourses(
   userId: number,
   limit: number = 3
 ) {
@@ -278,6 +267,5 @@ export function getRecentlyProgressedCourses(
     .where(eq(lessonProgress.userId, userId))
     .groupBy(courses.id)
     .orderBy(desc(sql`max(${lessonProgress.id})`))
-    .limit(limit)
-    .all();
+    .limit(limit);
 }

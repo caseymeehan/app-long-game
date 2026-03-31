@@ -46,17 +46,17 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   const { slug, moduleId } = parsed.data;
 
-  const course = getCourseBySlug(slug);
+  const course = await getCourseBySlug(slug);
   if (!course) {
     throw data("Course not found", { status: 404 });
   }
 
-  const courseWithDetails = getCourseWithDetails(course.id);
+  const courseWithDetails = await getCourseWithDetails(course.id);
   if (!courseWithDetails) {
     throw data("Course not found", { status: 404 });
   }
 
-  const moduleWithLessons = getModuleWithLessons(moduleId);
+  const moduleWithLessons = await getModuleWithLessons(moduleId);
   if (!moduleWithLessons) {
     throw data("Module not found", { status: 404 });
   }
@@ -72,10 +72,10 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   let lessonProgressMap: Record<number, string> = {};
 
   if (currentUserId) {
-    enrolled = isUserEnrolled(currentUserId, course.id);
+    enrolled = await isUserEnrolled(currentUserId, course.id);
 
     if (enrolled) {
-      const progressRecords = getLessonProgressForCourse(
+      const progressRecords = await getLessonProgressForCourse(
         currentUserId,
         course.id
       );

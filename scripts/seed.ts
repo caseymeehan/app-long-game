@@ -1,9 +1,6 @@
-import Database from "better-sqlite3";
-import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import path from "path";
-import { fileURLToPath } from "url";
+import { eq, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "../app/db/schema";
 import {
   UserRole,
@@ -13,15 +10,13 @@ import {
   TeamMemberRole,
 } from "../app/db/schema";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const migrationsFolder = path.resolve(__dirname, "../drizzle");
-
-const sqlite = new Database("data.db");
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
-
-const db = drizzle(sqlite, { schema });
+const connectionString = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error("DATABASE_URL or DIRECT_DATABASE_URL must be set");
+  process.exit(1);
+}
+const client = postgres(connectionString);
+const db = drizzle(client, { schema });
 
 // ─── Helpers ───
 
@@ -43,37 +38,15 @@ function slugify(title: string): string {
 async function seed() {
   console.log("Seeding database...");
 
-  // Drop and recreate tables for a clean seed
-  sqlite.exec(`
-    DROP TABLE IF EXISTS video_watch_events;
-    DROP TABLE IF EXISTS quiz_answers;
-    DROP TABLE IF EXISTS quiz_attempts;
-    DROP TABLE IF EXISTS quiz_options;
-    DROP TABLE IF EXISTS quiz_questions;
-    DROP TABLE IF EXISTS quizzes;
-    DROP TABLE IF EXISTS lesson_progress;
-    DROP TABLE IF EXISTS coupons;
-    DROP TABLE IF EXISTS team_members;
-    DROP TABLE IF EXISTS teams;
-    DROP TABLE IF EXISTS purchases;
-    DROP TABLE IF EXISTS enrollments;
-    DROP TABLE IF EXISTS lessons;
-    DROP TABLE IF EXISTS modules;
-    DROP TABLE IF EXISTS courses;
-    DROP TABLE IF EXISTS categories;
-    DROP TABLE IF EXISTS users;
-    DROP TABLE IF EXISTS __drizzle_migrations;
-  `);
+  // Truncate all tables for a clean seed (schema managed by drizzle-kit push)
+  await db.execute(sql`TRUNCATE video_watch_events, quiz_answers, quiz_attempts, quiz_options, quiz_questions, quizzes, lesson_progress, coupons, team_members, teams, purchases, enrollments, lessons, modules, courses, categories, users RESTART IDENTITY CASCADE`);
 
-  // Create tables using the same Drizzle migrations as the live database
-  migrate(db, { migrationsFolder });
-
-  console.log("Tables created.");
+  console.log("Tables truncated.");
 
   // ─── Users ───
   // 1 admin, 2 instructors, 5 students
 
-  const [admin] = db
+  const [admin] = await db
     .insert(schema.users)
     .values({
       name: "Alex Rivera",
@@ -82,10 +55,9 @@ async function seed() {
       avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=alex",
       createdAt: daysAgo(120),
     })
-    .returning()
-    .all();
+    .returning();
 
-  const [instructor1] = db
+  const [instructor1] = await db
     .insert(schema.users)
     .values({
       name: "Sarah Chen",
@@ -95,10 +67,9 @@ async function seed() {
       bio: "Senior TypeScript engineer with 10 years of experience building large-scale web applications. Previously at Stripe and Vercel. Passionate about type safety and developer tooling.",
       createdAt: daysAgo(100),
     })
-    .returning()
-    .all();
+    .returning();
 
-  const [instructor2] = db
+  const [instructor2] = await db
     .insert(schema.users)
     .values({
       name: "Marcus Johnson",
@@ -108,10 +79,9 @@ async function seed() {
       bio: "Full-stack developer and API architect specializing in Node.js and cloud infrastructure. Has built and scaled APIs serving millions of requests daily. Conference speaker and open-source contributor.",
       createdAt: daysAgo(95),
     })
-    .returning()
-    .all();
+    .returning();
 
-  const students = db
+  const students = await db
     .insert(schema.users)
     .values([
       {
@@ -150,10 +120,9 @@ async function seed() {
         createdAt: daysAgo(20),
       },
     ])
-    .returning()
-    .all();
+    .returning();
 
-  const [bossy] = db
+  const [bossy] = await db
     .insert(schema.users)
     .values({
       name: "Bossy McBossface",
@@ -162,8 +131,7 @@ async function seed() {
       avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=bossy",
       createdAt: daysAgo(40),
     })
-    .returning()
-    .all();
+    .returning();
 
   console.log(
     `Created ${1 + 2 + students.length + 1} users (1 admin, 2 instructors, ${students.length + 1} students).`
@@ -171,7 +139,7 @@ async function seed() {
 
   // ─── Categories ───
 
-  const categoriesData = db
+  const categoriesData = await db
     .insert(schema.categories)
     .values([
       { name: "Programming", slug: "programming" },
@@ -180,8 +148,7 @@ async function seed() {
       { name: "DevOps", slug: "devops" },
       { name: "Marketing", slug: "marketing" },
     ])
-    .returning()
-    .all();
+    .returning();
 
   const catBySlug = Object.fromEntries(categoriesData.map((c) => [c.slug, c]));
 
@@ -189,7 +156,7 @@ async function seed() {
 
   // ─── Course 1: Introduction to TypeScript (Sarah Chen) ───
 
-  const [course1] = db
+  const [course1] = await db
     .insert(schema.courses)
     .values({
       title: "Introduction to TypeScript",
@@ -234,8 +201,7 @@ By the end of this course, you'll understand why TypeScript has become the defau
       createdAt: daysAgo(90),
       updatedAt: daysAgo(10),
     })
-    .returning()
-    .all();
+    .returning();
 
   // Course 1 modules and lessons
   const c1Modules = [
@@ -606,7 +572,7 @@ Practice by converting an existing JavaScript project to TypeScript. Start with 
 
   for (let mi = 0; mi < c1Modules.length; mi++) {
     const modData = c1Modules[mi];
-    const [mod] = db
+    const [mod] = await db
       .insert(schema.modules)
       .values({
         courseId: course1.id,
@@ -614,12 +580,11 @@ Practice by converting an existing JavaScript project to TypeScript. Start with 
         position: mi + 1,
         createdAt: daysAgo(90 - mi),
       })
-      .returning()
-      .all();
+      .returning();
 
     for (let li = 0; li < modData.lessons.length; li++) {
       const lessonData = modData.lessons[li];
-      const [lesson] = db
+      const [lesson] = await db
         .insert(schema.lessons)
         .values({
           moduleId: mod.id,
@@ -633,8 +598,7 @@ Practice by converting an existing JavaScript project to TypeScript. Start with 
           durationMinutes: lessonData.duration,
           createdAt: daysAgo(90 - mi),
         })
-        .returning()
-        .all();
+        .returning();
       course1LessonIds.push(lesson.id);
     }
   }
@@ -645,7 +609,7 @@ Practice by converting an existing JavaScript project to TypeScript. Start with 
 
   // ─── Course 2: Building REST APIs with Node.js (Marcus Johnson) ───
 
-  const [course2] = db
+  const [course2] = await db
     .insert(schema.courses)
     .values({
       title: "Building REST APIs with Node.js",
@@ -695,8 +659,7 @@ Every lesson is focused and practical. No 45-minute lectures where 40 minutes ar
       createdAt: daysAgo(75),
       updatedAt: daysAgo(5),
     })
-    .returning()
-    .all();
+    .returning();
 
   const c2Modules = [
     {
@@ -1107,7 +1070,7 @@ You've completed the Building REST APIs course. You now have the skills to build
 
   for (let mi = 0; mi < c2Modules.length; mi++) {
     const modData = c2Modules[mi];
-    const [mod] = db
+    const [mod] = await db
       .insert(schema.modules)
       .values({
         courseId: course2.id,
@@ -1115,12 +1078,11 @@ You've completed the Building REST APIs course. You now have the skills to build
         position: mi + 1,
         createdAt: daysAgo(75 - mi),
       })
-      .returning()
-      .all();
+      .returning();
 
     for (let li = 0; li < modData.lessons.length; li++) {
       const lessonData = modData.lessons[li];
-      const [lesson] = db
+      const [lesson] = await db
         .insert(schema.lessons)
         .values({
           moduleId: mod.id,
@@ -1134,8 +1096,7 @@ You've completed the Building REST APIs course. You now have the skills to build
           durationMinutes: lessonData.duration,
           createdAt: daysAgo(75 - mi),
         })
-        .returning()
-        .all();
+        .returning();
       course2LessonIds.push(lesson.id);
     }
   }
@@ -1148,15 +1109,14 @@ You've completed the Building REST APIs course. You now have the skills to build
   // Add quizzes to some lessons in both courses
 
   // Quiz 1: TypeScript Basics Quiz (attached to "Your First TypeScript Program", lesson 3 of course 1)
-  const [quiz1] = db
+  const [quiz1] = await db
     .insert(schema.quizzes)
     .values({
       lessonId: course1LessonIds[2], // "Your First TypeScript Program"
       title: "TypeScript Basics Quiz",
       passingScore: 0.7,
     })
-    .returning()
-    .all();
+    .returning();
 
   const quiz1Questions = [
     {
@@ -1197,7 +1157,7 @@ You've completed the Building REST APIs course. You now have the skills to build
 
   for (let qi = 0; qi < quiz1Questions.length; qi++) {
     const q = quiz1Questions[qi];
-    const [question] = db
+    const [question] = await db
       .insert(schema.quizQuestions)
       .values({
         quizId: quiz1.id,
@@ -1205,19 +1165,17 @@ You've completed the Building REST APIs course. You now have the skills to build
         questionType: q.type,
         position: qi + 1,
       })
-      .returning()
-      .all();
+      .returning();
 
     for (const opt of q.options) {
-      const [option] = db
+      const [option] = await db
         .insert(schema.quizOptions)
         .values({
           questionId: question.id,
           optionText: opt.text,
           isCorrect: opt.correct,
         })
-        .returning()
-        .all();
+        .returning();
       quiz1OptionIds.push({
         questionId: question.id,
         optionId: option.id,
@@ -1227,15 +1185,14 @@ You've completed the Building REST APIs course. You now have the skills to build
   }
 
   // Quiz 2: Generics Quiz (attached to "Generics Basics", lesson index 5 in course 1)
-  const [quiz2] = db
+  const [quiz2] = await db
     .insert(schema.quizzes)
     .values({
       lessonId: course1LessonIds[7], // "Generics Basics" (module 3, lesson 2)
       title: "Generics Knowledge Check",
       passingScore: 0.6,
     })
-    .returning()
-    .all();
+    .returning();
 
   const quiz2Questions = [
     {
@@ -1266,7 +1223,7 @@ You've completed the Building REST APIs course. You now have the skills to build
 
   for (let qi = 0; qi < quiz2Questions.length; qi++) {
     const q = quiz2Questions[qi];
-    const [question] = db
+    const [question] = await db
       .insert(schema.quizQuestions)
       .values({
         quizId: quiz2.id,
@@ -1274,19 +1231,17 @@ You've completed the Building REST APIs course. You now have the skills to build
         questionType: q.type,
         position: qi + 1,
       })
-      .returning()
-      .all();
+      .returning();
 
     for (const opt of q.options) {
-      const [option] = db
+      const [option] = await db
         .insert(schema.quizOptions)
         .values({
           questionId: question.id,
           optionText: opt.text,
           isCorrect: opt.correct,
         })
-        .returning()
-        .all();
+        .returning();
       quiz2OptionIds.push({
         questionId: question.id,
         optionId: option.id,
@@ -1296,15 +1251,14 @@ You've completed the Building REST APIs course. You now have the skills to build
   }
 
   // Quiz 3: REST API Basics (attached to "HTTP Methods and Status Codes", lesson index 2 in course 2)
-  const [quiz3] = db
+  const [quiz3] = await db
     .insert(schema.quizzes)
     .values({
       lessonId: course2LessonIds[2], // "HTTP Methods and Status Codes"
       title: "HTTP Methods Quiz",
       passingScore: 0.7,
     })
-    .returning()
-    .all();
+    .returning();
 
   const quiz3Questions = [
     {
@@ -1345,7 +1299,7 @@ You've completed the Building REST APIs course. You now have the skills to build
 
   for (let qi = 0; qi < quiz3Questions.length; qi++) {
     const q = quiz3Questions[qi];
-    const [question] = db
+    const [question] = await db
       .insert(schema.quizQuestions)
       .values({
         quizId: quiz3.id,
@@ -1353,19 +1307,17 @@ You've completed the Building REST APIs course. You now have the skills to build
         questionType: q.type,
         position: qi + 1,
       })
-      .returning()
-      .all();
+      .returning();
 
     for (const opt of q.options) {
-      const [option] = db
+      const [option] = await db
         .insert(schema.quizOptions)
         .values({
           questionId: question.id,
           optionText: opt.text,
           isCorrect: opt.correct,
         })
-        .returning()
-        .all();
+        .returning();
       quiz3OptionIds.push({
         questionId: question.id,
         optionId: option.id,
@@ -1384,7 +1336,7 @@ You've completed the Building REST APIs course. You now have the skills to build
   // - Liam: enrolled in course 2 only (just started, abandoned)
   // - Sophia: enrolled in course 1 only (recently enrolled, barely started)
 
-  db.insert(schema.enrollments)
+  await db.insert(schema.enrollments)
     .values([
       { userId: students[0].id, courseId: course1.id, enrolledAt: daysAgo(50) },
       { userId: students[0].id, courseId: course2.id, enrolledAt: daysAgo(40) },
@@ -1398,82 +1350,79 @@ You've completed the Building REST APIs course. You now have the skills to build
       { userId: students[2].id, courseId: course2.id, enrolledAt: daysAgo(30) },
       { userId: students[3].id, courseId: course2.id, enrolledAt: daysAgo(25) },
       { userId: students[4].id, courseId: course1.id, enrolledAt: daysAgo(15) },
-    ])
-    .run();
+    ]);
 
   console.log("Created 7 enrollments.");
 
   // ─── Lesson Progress ───
 
   // Helper to mark lessons as complete
-  function markComplete(
+  async function markComplete(
     userId: number,
     lessonId: number,
     daysAgoCompleted: number
   ) {
-    db.insert(schema.lessonProgress)
+    await db.insert(schema.lessonProgress)
       .values({
         userId,
         lessonId,
         status: LessonProgressStatus.Completed,
         completedAt: daysAgo(daysAgoCompleted),
-      })
-      .run();
+      });
   }
 
-  function markInProgress(userId: number, lessonId: number) {
-    db.insert(schema.lessonProgress)
+  async function markInProgress(userId: number, lessonId: number) {
+    await db.insert(schema.lessonProgress)
       .values({
         userId,
         lessonId,
         status: LessonProgressStatus.InProgress,
-      })
-      .run();
+      });
   }
 
   // Emma (students[0]) — nearly complete in course 1 (17 of 19 lessons done)
   for (let i = 0; i < 17; i++) {
-    markComplete(students[0].id, course1LessonIds[i], 50 - i);
+    await markComplete(students[0].id, course1LessonIds[i], 50 - i);
   }
-  markInProgress(students[0].id, course1LessonIds[17]);
+  await markInProgress(students[0].id, course1LessonIds[17]);
 
   // Emma — mid-way through course 2 (10 of 20 lessons done)
   for (let i = 0; i < 10; i++) {
-    markComplete(students[0].id, course2LessonIds[i], 40 - i);
+    await markComplete(students[0].id, course2LessonIds[i], 40 - i);
   }
-  markInProgress(students[0].id, course2LessonIds[10]);
+  await markInProgress(students[0].id, course2LessonIds[10]);
 
   // James (students[1]) — completed all of course 1
   for (let i = 0; i < course1LessonIds.length; i++) {
-    markComplete(students[1].id, course1LessonIds[i], 45 - i);
+    await markComplete(students[1].id, course1LessonIds[i], 45 - i);
   }
 
   // Olivia (students[2]) — just started course 1 (3 lessons done)
   for (let i = 0; i < 3; i++) {
-    markComplete(students[2].id, course1LessonIds[i], 30 - i);
+    await markComplete(students[2].id, course1LessonIds[i], 30 - i);
   }
-  markInProgress(students[2].id, course1LessonIds[3]);
+  await markInProgress(students[2].id, course1LessonIds[3]);
 
   // Olivia — mid-way through course 2 (8 lessons done)
   for (let i = 0; i < 8; i++) {
-    markComplete(students[2].id, course2LessonIds[i], 28 - i);
+    await markComplete(students[2].id, course2LessonIds[i], 28 - i);
   }
 
   // Liam (students[3]) — just started course 2, abandoned (2 lessons done)
   for (let i = 0; i < 2; i++) {
-    markComplete(students[3].id, course2LessonIds[i], 22 - i);
+    await markComplete(students[3].id, course2LessonIds[i], 22 - i);
   }
 
   // Sophia (students[4]) — barely started course 1 (1 lesson done)
-  markComplete(students[4].id, course1LessonIds[0], 12);
-  markInProgress(students[4].id, course1LessonIds[1]);
+  await markComplete(students[4].id, course1LessonIds[0], 12);
+  await markInProgress(students[4].id, course1LessonIds[1]);
 
   console.log("Created lesson progress records.");
 
   // ─── Quiz Attempts ───
 
   // Helper to record a quiz attempt with answers
-  function recordQuizAttempt(
+  async function recordQuizAttempt(
     userId: number,
     quizId: number,
     optionIds: { questionId: number; optionId: number; correct: boolean }[],
@@ -1487,7 +1436,7 @@ You've completed the Building REST APIs course. You now have the skills to build
     // Determine passing based on quiz passingScore (we'll just use 0.7 as default)
     const passed = score >= 0.7;
 
-    const [attempt] = db
+    const [attempt] = await db
       .insert(schema.quizAttempts)
       .values({
         userId,
@@ -1496,8 +1445,7 @@ You've completed the Building REST APIs course. You now have the skills to build
         passed,
         attemptedAt: daysAgo(attemptDaysAgo),
       })
-      .returning()
-      .all();
+      .returning();
 
     // Build answer selections
     const questionIds = [...new Set(optionIds.map((o) => o.questionId))];
@@ -1514,89 +1462,87 @@ You've completed the Building REST APIs course. You now have the skills to build
         selectedOption = qOptions.find((o) => !o.correct)!;
       }
 
-      db.insert(schema.quizAnswers)
+      await db.insert(schema.quizAnswers)
         .values({
           attemptId: attempt.id,
           questionId: qId,
           selectedOptionId: selectedOption.optionId,
-        })
-        .run();
+        });
     }
   }
 
   // Emma — passed quiz 1 (3/3 correct)
-  recordQuizAttempt(students[0].id, quiz1.id, quiz1OptionIds, [0, 1, 2], 35);
+  await recordQuizAttempt(students[0].id, quiz1.id, quiz1OptionIds, [0, 1, 2], 35);
 
   // Emma — passed quiz 2 (2/2 correct)
-  recordQuizAttempt(students[0].id, quiz2.id, quiz2OptionIds, [0, 1], 30);
+  await recordQuizAttempt(students[0].id, quiz2.id, quiz2OptionIds, [0, 1], 30);
 
   // Emma — passed quiz 3 (2/3 correct, just barely at 67% with 70% passing = fail, then retake)
-  recordQuizAttempt(students[0].id, quiz3.id, quiz3OptionIds, [0, 2], 28);
+  await recordQuizAttempt(students[0].id, quiz3.id, quiz3OptionIds, [0, 2], 28);
   // Retake — all correct
-  recordQuizAttempt(students[0].id, quiz3.id, quiz3OptionIds, [0, 1, 2], 27);
+  await recordQuizAttempt(students[0].id, quiz3.id, quiz3OptionIds, [0, 1, 2], 27);
 
   // James — passed quiz 1 (3/3 correct)
-  recordQuizAttempt(students[1].id, quiz1.id, quiz1OptionIds, [0, 1, 2], 40);
+  await recordQuizAttempt(students[1].id, quiz1.id, quiz1OptionIds, [0, 1, 2], 40);
 
   // James — passed quiz 2 (2/2 correct)
-  recordQuizAttempt(students[1].id, quiz2.id, quiz2OptionIds, [0, 1], 35);
+  await recordQuizAttempt(students[1].id, quiz2.id, quiz2OptionIds, [0, 1], 35);
 
   // Olivia — failed quiz 1 first attempt (1/3 correct), then passed on retry (3/3)
-  recordQuizAttempt(students[2].id, quiz1.id, quiz1OptionIds, [0], 25);
-  recordQuizAttempt(students[2].id, quiz1.id, quiz1OptionIds, [0, 1, 2], 24);
+  await recordQuizAttempt(students[2].id, quiz1.id, quiz1OptionIds, [0], 25);
+  await recordQuizAttempt(students[2].id, quiz1.id, quiz1OptionIds, [0, 1, 2], 24);
 
   // Olivia — passed quiz 3 (3/3 correct)
-  recordQuizAttempt(students[2].id, quiz3.id, quiz3OptionIds, [0, 1, 2], 20);
+  await recordQuizAttempt(students[2].id, quiz3.id, quiz3OptionIds, [0, 1, 2], 20);
 
   // Sophia — failed quiz 1 (1/3 correct, hasn't retaken yet)
-  recordQuizAttempt(students[4].id, quiz1.id, quiz1OptionIds, [1], 10);
+  await recordQuizAttempt(students[4].id, quiz1.id, quiz1OptionIds, [1], 10);
 
   console.log("Created quiz attempts and answers.");
 
   // ─── Video Watch Events ───
   // Sprinkle some realistic watch events
 
-  function addWatchEvent(
+  async function addWatchEvent(
     userId: number,
     lessonId: number,
     eventType: string,
     positionSeconds: number,
     eventDaysAgo: number
   ) {
-    db.insert(schema.videoWatchEvents)
+    await db.insert(schema.videoWatchEvents)
       .values({
         userId,
         lessonId,
         eventType,
         positionSeconds,
         createdAt: daysAgo(eventDaysAgo),
-      })
-      .run();
+      });
   }
 
   // Emma watching course 1 lesson 1 (8 min video)
-  addWatchEvent(students[0].id, course1LessonIds[0], "play", 0, 50);
-  addWatchEvent(students[0].id, course1LessonIds[0], "pause", 180, 50);
-  addWatchEvent(students[0].id, course1LessonIds[0], "play", 180, 49);
-  addWatchEvent(students[0].id, course1LessonIds[0], "ended", 480, 49);
+  await addWatchEvent(students[0].id, course1LessonIds[0], "play", 0, 50);
+  await addWatchEvent(students[0].id, course1LessonIds[0], "pause", 180, 50);
+  await addWatchEvent(students[0].id, course1LessonIds[0], "play", 180, 49);
+  await addWatchEvent(students[0].id, course1LessonIds[0], "ended", 480, 49);
 
   // James watching course 1 lesson 1
-  addWatchEvent(students[1].id, course1LessonIds[0], "play", 0, 45);
-  addWatchEvent(students[1].id, course1LessonIds[0], "ended", 480, 45);
+  await addWatchEvent(students[1].id, course1LessonIds[0], "play", 0, 45);
+  await addWatchEvent(students[1].id, course1LessonIds[0], "ended", 480, 45);
 
   // Liam started watching course 2 lesson 1 but stopped mid-way
-  addWatchEvent(students[3].id, course2LessonIds[0], "play", 0, 22);
-  addWatchEvent(students[3].id, course2LessonIds[0], "pause", 300, 22);
-  addWatchEvent(students[3].id, course2LessonIds[0], "seek", 150, 21);
-  addWatchEvent(students[3].id, course2LessonIds[0], "play", 150, 21);
-  addWatchEvent(students[3].id, course2LessonIds[0], "pause", 360, 21);
+  await addWatchEvent(students[3].id, course2LessonIds[0], "play", 0, 22);
+  await addWatchEvent(students[3].id, course2LessonIds[0], "pause", 300, 22);
+  await addWatchEvent(students[3].id, course2LessonIds[0], "seek", 150, 21);
+  await addWatchEvent(students[3].id, course2LessonIds[0], "play", 150, 21);
+  await addWatchEvent(students[3].id, course2LessonIds[0], "pause", 360, 21);
 
   console.log("Created video watch events.");
 
   // ─── Purchases ───
   // Individual purchases for enrolled students
 
-  const [purchase1] = db
+  const [purchase1] = await db
     .insert(schema.purchases)
     .values({
       userId: students[0].id, // Emma — bought course 1 individually
@@ -1605,71 +1551,64 @@ You've completed the Building REST APIs course. You now have the skills to build
       country: "US",
       createdAt: daysAgo(50),
     })
-    .returning()
-    .all();
+    .returning();
 
-  db.insert(schema.purchases)
+  await db.insert(schema.purchases)
     .values({
       userId: students[0].id, // Emma — bought course 2 individually
       courseId: course2.id,
       pricePaid: 5999,
       country: "US",
       createdAt: daysAgo(40),
-    })
-    .run();
+    });
 
-  db.insert(schema.purchases)
+  await db.insert(schema.purchases)
     .values({
       userId: students[1].id, // James — bought course 1 with PPP discount (India)
       courseId: course1.id,
       pricePaid: 2500,
       country: "IN",
       createdAt: daysAgo(45),
-    })
-    .run();
+    });
 
-  db.insert(schema.purchases)
+  await db.insert(schema.purchases)
     .values({
       userId: students[2].id, // Olivia — bought course 1 individually
       courseId: course1.id,
       pricePaid: 4999,
       country: "US",
       createdAt: daysAgo(35),
-    })
-    .run();
+    });
 
-  db.insert(schema.purchases)
+  await db.insert(schema.purchases)
     .values({
       userId: students[4].id, // Sophia — bought course 1 individually
       courseId: course1.id,
       pricePaid: 4999,
       country: "US",
       createdAt: daysAgo(15),
-    })
-    .run();
+    });
 
   console.log("Created 5 individual purchases.");
 
   // ─── Teams, Team Members, and Coupons ───
   // Bossy McBossface bought 5 team seats for course 2; Olivia and Liam redeemed coupons
 
-  const [team1] = db
+  const [team1] = await db
     .insert(schema.teams)
     .values({ createdAt: daysAgo(30) })
-    .returning()
-    .all();
+    .returning();
 
-  db.insert(schema.teamMembers)
+  await db.insert(schema.teamMembers)
     .values({
       teamId: team1.id,
       userId: bossy.id,
       role: TeamMemberRole.Admin,
       createdAt: daysAgo(30),
-    })
-    .run();
+    });
 
   // Team purchase by Bossy McBossface for course 2 (5 seats)
-  const [teamPurchase] = db
+  const [teamPurchase] = await db
     .insert(schema.purchases)
     .values({
       userId: bossy.id,
@@ -1678,8 +1617,7 @@ You've completed the Building REST APIs course. You now have the skills to build
       country: "US",
       createdAt: daysAgo(30),
     })
-    .returning()
-    .all();
+    .returning();
 
   // Generate 5 coupons for the team purchase
   const couponCodes = [
@@ -1690,7 +1628,7 @@ You've completed the Building REST APIs course. You now have the skills to build
     "TEAM-NODEJS-M3N4O5",
   ];
 
-  const seededCoupons = db
+  const seededCoupons = await db
     .insert(schema.coupons)
     .values(
       couponCodes.map((code) => ({
@@ -1701,27 +1639,24 @@ You've completed the Building REST APIs course. You now have the skills to build
         createdAt: daysAgo(30),
       }))
     )
-    .returning()
-    .all();
+    .returning();
 
   // Redeem 2 coupons: Olivia (students[2]) and Liam (students[3])
   // Olivia already has an enrollment for course 2 from the enrollments section above
-  db.update(schema.coupons)
+  await db.update(schema.coupons)
     .set({
       redeemedByUserId: students[2].id,
       redeemedAt: daysAgo(30),
     })
-    .where(eq(schema.coupons.id, seededCoupons[0].id))
-    .run();
+    .where(eq(schema.coupons.id, seededCoupons[0].id));
 
   // Liam already has an enrollment for course 2 from the enrollments section above
-  db.update(schema.coupons)
+  await db.update(schema.coupons)
     .set({
       redeemedByUserId: students[3].id,
       redeemedAt: daysAgo(25),
     })
-    .where(eq(schema.coupons.id, seededCoupons[1].id))
-    .run();
+    .where(eq(schema.coupons.id, seededCoupons[1].id));
 
   console.log(
     `Created 1 team with Bossy McBossface as admin, 1 team purchase, and ${seededCoupons.length} coupons (2 redeemed, 3 available).`
@@ -1737,6 +1672,8 @@ You've completed the Building REST APIs course. You now have the skills to build
   console.log("  Enrollments: 7");
   console.log("  Purchases: 6 (5 individual + 1 team)");
   console.log("  Teams: 1 (with 5 coupons)");
+
+  await client.end();
 }
 
 seed().catch(console.error);

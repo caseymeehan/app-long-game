@@ -3,7 +3,7 @@ import { createTestDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 
 let testDb: ReturnType<typeof createTestDb>;
-let base: ReturnType<typeof seedBaseData>;
+let base: Awaited<ReturnType<typeof seedBaseData>>;
 
 vi.mock("~/db", () => ({
   get db() {
@@ -24,9 +24,9 @@ import {
 } from "./categoryService";
 
 describe("categoryService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     testDb = createTestDb();
-    base = seedBaseData(testDb);
+    base = await seedBaseData(testDb);
   });
 
   // ─── Slug Generation ───
@@ -64,91 +64,87 @@ describe("categoryService", () => {
   // ─── Read Operations ───
 
   describe("getAllCategories", () => {
-    it("returns all categories", () => {
-      const cats = getAllCategories();
+    it("returns all categories", async () => {
+      const cats = await getAllCategories();
       expect(cats.length).toBeGreaterThanOrEqual(1);
       expect(cats.some((c) => c.slug === "programming")).toBe(true);
     });
 
-    it("returns categories ordered alphabetically by name", () => {
-      testDb
+    it("returns categories ordered alphabetically by name", async () => {
+      await testDb
         .insert(schema.categories)
-        .values({ name: "Zebra Studies", slug: "zebra-studies" })
-        .run();
-      testDb
+        .values({ name: "Zebra Studies", slug: "zebra-studies" });
+      await testDb
         .insert(schema.categories)
-        .values({ name: "Art", slug: "art" })
-        .run();
+        .values({ name: "Art", slug: "art" });
 
-      const cats = getAllCategories();
+      const cats = await getAllCategories();
       const names = cats.map((c) => c.name);
       expect(names).toEqual([...names].sort());
     });
   });
 
   describe("getCategoryById", () => {
-    it("returns the category by id", () => {
-      const cat = getCategoryById(base.category.id);
+    it("returns the category by id", async () => {
+      const cat = await getCategoryById(base.category.id);
       expect(cat).toBeDefined();
       expect(cat!.name).toBe("Programming");
     });
 
-    it("returns undefined for non-existent id", () => {
-      expect(getCategoryById(9999)).toBeUndefined();
+    it("returns undefined for non-existent id", async () => {
+      expect(await getCategoryById(9999)).toBeUndefined();
     });
   });
 
   describe("getCategoryBySlug", () => {
-    it("returns the category by slug", () => {
-      const cat = getCategoryBySlug("programming");
+    it("returns the category by slug", async () => {
+      const cat = await getCategoryBySlug("programming");
       expect(cat).toBeDefined();
       expect(cat!.name).toBe("Programming");
     });
 
-    it("returns undefined for non-existent slug", () => {
-      expect(getCategoryBySlug("nonexistent")).toBeUndefined();
+    it("returns undefined for non-existent slug", async () => {
+      expect(await getCategoryBySlug("nonexistent")).toBeUndefined();
     });
   });
 
   describe("getCategoryByName", () => {
-    it("returns the category by name", () => {
-      const cat = getCategoryByName("Programming");
+    it("returns the category by name", async () => {
+      const cat = await getCategoryByName("Programming");
       expect(cat).toBeDefined();
       expect(cat!.slug).toBe("programming");
     });
 
-    it("returns undefined for non-existent name", () => {
-      expect(getCategoryByName("Nonexistent")).toBeUndefined();
+    it("returns undefined for non-existent name", async () => {
+      expect(await getCategoryByName("Nonexistent")).toBeUndefined();
     });
   });
 
   describe("getAllCategoriesWithCourseCounts", () => {
-    it("returns categories with course counts", () => {
-      const cats = getAllCategoriesWithCourseCounts();
+    it("returns categories with course counts", async () => {
+      const cats = await getAllCategoriesWithCourseCounts();
       const programming = cats.find((c) => c.slug === "programming");
       expect(programming).toBeDefined();
       expect(programming!.courseCount).toBe(1);
     });
 
-    it("returns 0 for categories with no courses", () => {
-      testDb
+    it("returns 0 for categories with no courses", async () => {
+      await testDb
         .insert(schema.categories)
-        .values({ name: "Empty Category", slug: "empty-category" })
-        .run();
+        .values({ name: "Empty Category", slug: "empty-category" });
 
-      const cats = getAllCategoriesWithCourseCounts();
+      const cats = await getAllCategoriesWithCourseCounts();
       const empty = cats.find((c) => c.slug === "empty-category");
       expect(empty).toBeDefined();
       expect(empty!.courseCount).toBe(0);
     });
 
-    it("returns categories ordered alphabetically", () => {
-      testDb
+    it("returns categories ordered alphabetically", async () => {
+      await testDb
         .insert(schema.categories)
-        .values({ name: "Art", slug: "art" })
-        .run();
+        .values({ name: "Art", slug: "art" });
 
-      const cats = getAllCategoriesWithCourseCounts();
+      const cats = await getAllCategoriesWithCourseCounts();
       const names = cats.map((c) => c.name);
       expect(names).toEqual([...names].sort());
     });
@@ -157,101 +153,97 @@ describe("categoryService", () => {
   // ─── Create ───
 
   describe("createCategory", () => {
-    it("creates a category with auto-generated slug", () => {
-      const cat = createCategory("Machine Learning");
+    it("creates a category with auto-generated slug", async () => {
+      const cat = await createCategory("Machine Learning");
       expect(cat.name).toBe("Machine Learning");
       expect(cat.slug).toBe("machine-learning");
       expect(cat.id).toBeDefined();
     });
 
-    it("throws on duplicate name", () => {
-      expect(() => createCategory("Programming")).toThrow(
+    it("throws on duplicate name", async () => {
+      await expect(() => createCategory("Programming")).rejects.toThrow(
         'A category with the name "Programming" already exists.'
       );
     });
 
-    it("throws on duplicate slug", () => {
+    it("throws on duplicate slug", async () => {
       // "programming!" would produce slug "programming" which already exists
-      testDb
+      await testDb
         .insert(schema.categories)
-        .values({ name: "Data Science", slug: "data-science" })
-        .run();
+        .values({ name: "Data Science", slug: "data-science" });
 
-      expect(() => createCategory("Data Science")).toThrow(
+      await expect(() => createCategory("Data Science")).rejects.toThrow(
         'A category with the name "Data Science" already exists.'
       );
     });
 
-    it("throws on slug collision even with different name", () => {
+    it("throws on slug collision even with different name", async () => {
       // Create a category, then try another name that produces the same slug
-      createCategory("Web Dev");
-      expect(() => createCategory("web dev")).toThrow();
+      await createCategory("Web Dev");
+      await expect(() => createCategory("web dev")).rejects.toThrow();
     });
   });
 
   // ─── Update ───
 
   describe("updateCategory", () => {
-    it("updates name and regenerates slug", () => {
-      const updated = updateCategory(base.category.id, "Web Development");
+    it("updates name and regenerates slug", async () => {
+      const updated = await updateCategory(base.category.id, "Web Development");
       expect(updated).toBeDefined();
       expect(updated!.name).toBe("Web Development");
       expect(updated!.slug).toBe("web-development");
     });
 
-    it("allows updating to the same name (no-op rename)", () => {
-      const updated = updateCategory(base.category.id, "Programming");
+    it("allows updating to the same name (no-op rename)", async () => {
+      const updated = await updateCategory(base.category.id, "Programming");
       expect(updated).toBeDefined();
       expect(updated!.name).toBe("Programming");
     });
 
-    it("throws on duplicate name with another category", () => {
-      testDb
+    it("throws on duplicate name with another category", async () => {
+      await testDb
         .insert(schema.categories)
-        .values({ name: "Design", slug: "design" })
-        .run();
+        .values({ name: "Design", slug: "design" });
 
-      expect(() => updateCategory(base.category.id, "Design")).toThrow(
+      await expect(() => updateCategory(base.category.id, "Design")).rejects.toThrow(
         'A category with the name "Design" already exists.'
       );
     });
 
-    it("throws on duplicate slug with another category", () => {
-      testDb
+    it("throws on duplicate slug with another category", async () => {
+      await testDb
         .insert(schema.categories)
-        .values({ name: "Design", slug: "design" })
-        .run();
+        .values({ name: "Design", slug: "design" });
 
       // "design" name → "design" slug, which already exists under a different id
-      expect(() => updateCategory(base.category.id, "Design")).toThrow();
+      await expect(() => updateCategory(base.category.id, "Design")).rejects.toThrow();
     });
   });
 
   // ─── Delete ───
 
   describe("deleteCategory", () => {
-    it("deletes a category with no courses", () => {
-      const empty = testDb
+    it("deletes a category with no courses", async () => {
+      const [empty] = await testDb
         .insert(schema.categories)
         .values({ name: "Empty", slug: "empty" })
-        .returning()
-        .get();
+        .returning();
 
-      const deleted = deleteCategory(empty.id);
+      const deleted = await deleteCategory(empty.id);
       expect(deleted).toBeDefined();
       expect(deleted!.id).toBe(empty.id);
-      expect(getCategoryById(empty.id)).toBeUndefined();
+      expect(await getCategoryById(empty.id)).toBeUndefined();
     });
 
-    it("throws when category has courses", () => {
-      expect(() => deleteCategory(base.category.id)).toThrow(
+    it("throws when category has courses", async () => {
+      await expect(() => deleteCategory(base.category.id)).rejects.toThrow(
         "Cannot delete: 1 course use this category."
       );
     });
 
-    it("includes course count in error message", () => {
+    it("includes course count in error message", async () => {
       // Add a second course to the category
-      testDb
+      await testDb
         .insert(schema.courses)
         .values({
           title: "Second Course",
@@ -260,10 +252,9 @@ describe("categoryService", () => {
           instructorId: base.instructor.id,
           categoryId: base.category.id,
           status: schema.CourseStatus.Draft,
-        })
-        .run();
+        });
 
-      expect(() => deleteCategory(base.category.id)).toThrow(
+      await expect(() => deleteCategory(base.category.id)).rejects.toThrow(
         "Cannot delete: 2 courses use this category."
       );
     });

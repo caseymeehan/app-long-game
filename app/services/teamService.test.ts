@@ -3,7 +3,7 @@ import { createTestDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 
 let testDb: ReturnType<typeof createTestDb>;
-let base: ReturnType<typeof seedBaseData>;
+let base: Awaited<ReturnType<typeof seedBaseData>>;
 
 vi.mock("~/db", () => ({
   get db() {
@@ -22,14 +22,14 @@ import {
 } from "./teamService";
 
 describe("teamService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     testDb = createTestDb();
-    base = seedBaseData(testDb);
+    base = await seedBaseData(testDb);
   });
 
   describe("createTeam", () => {
-    it("creates a team and returns it", () => {
-      const team = createTeam();
+    it("creates a team and returns it", async () => {
+      const team = await createTeam();
 
       expect(team).toBeDefined();
       expect(team.id).toBeDefined();
@@ -38,9 +38,9 @@ describe("teamService", () => {
   });
 
   describe("addTeamMember", () => {
-    it("adds a user as an admin", () => {
-      const team = createTeam();
-      const member = addTeamMember(
+    it("adds a user as an admin", async () => {
+      const team = await createTeam();
+      const member = await addTeamMember(
         team.id,
         base.user.id,
         schema.TeamMemberRole.Admin
@@ -52,9 +52,9 @@ describe("teamService", () => {
       expect(member.role).toBe(schema.TeamMemberRole.Admin);
     });
 
-    it("adds a user as a member", () => {
-      const team = createTeam();
-      const member = addTeamMember(
+    it("adds a user as a member", async () => {
+      const team = await createTeam();
+      const member = await addTeamMember(
         team.id,
         base.user.id,
         schema.TeamMemberRole.Member
@@ -65,88 +65,88 @@ describe("teamService", () => {
   });
 
   describe("getTeamForAdmin", () => {
-    it("returns the team when user is an admin", () => {
-      const team = createTeam();
-      addTeamMember(team.id, base.user.id, schema.TeamMemberRole.Admin);
+    it("returns the team when user is an admin", async () => {
+      const team = await createTeam();
+      await addTeamMember(team.id, base.user.id, schema.TeamMemberRole.Admin);
 
-      const found = getTeamForAdmin(base.user.id);
+      const found = await getTeamForAdmin(base.user.id);
       expect(found).toBeDefined();
       expect(found!.id).toBe(team.id);
     });
 
-    it("returns undefined when user is a member but not admin", () => {
-      const team = createTeam();
-      addTeamMember(team.id, base.user.id, schema.TeamMemberRole.Member);
+    it("returns undefined when user is a member but not admin", async () => {
+      const team = await createTeam();
+      await addTeamMember(team.id, base.user.id, schema.TeamMemberRole.Member);
 
-      const found = getTeamForAdmin(base.user.id);
+      const found = await getTeamForAdmin(base.user.id);
       expect(found).toBeUndefined();
     });
 
-    it("returns undefined when user has no team", () => {
-      const found = getTeamForAdmin(base.user.id);
+    it("returns undefined when user has no team", async () => {
+      const found = await getTeamForAdmin(base.user.id);
       expect(found).toBeUndefined();
     });
   });
 
   describe("getOrCreateTeamForUser", () => {
-    it("creates a new team and makes user admin", () => {
-      const team = getOrCreateTeamForUser(base.user.id);
+    it("creates a new team and makes user admin", async () => {
+      const team = await getOrCreateTeamForUser(base.user.id);
 
       expect(team).toBeDefined();
       expect(team.id).toBeDefined();
 
       // Verify user is admin of the team
-      const members = getTeamMembers(team.id);
+      const members = await getTeamMembers(team.id);
       expect(members).toHaveLength(1);
       expect(members[0].userId).toBe(base.user.id);
       expect(members[0].role).toBe(schema.TeamMemberRole.Admin);
     });
 
-    it("returns existing team on subsequent calls (team is reused)", () => {
-      const team1 = getOrCreateTeamForUser(base.user.id);
-      const team2 = getOrCreateTeamForUser(base.user.id);
+    it("returns existing team on subsequent calls (team is reused)", async () => {
+      const team1 = await getOrCreateTeamForUser(base.user.id);
+      const team2 = await getOrCreateTeamForUser(base.user.id);
 
       expect(team1.id).toBe(team2.id);
 
       // Verify only one membership exists (not duplicated)
-      const members = getTeamMembers(team1.id);
+      const members = await getTeamMembers(team1.id);
       expect(members).toHaveLength(1);
     });
   });
 
   describe("isTeamAdmin", () => {
-    it("returns true when user is a team admin", () => {
-      getOrCreateTeamForUser(base.user.id);
+    it("returns true when user is a team admin", async () => {
+      await getOrCreateTeamForUser(base.user.id);
 
-      expect(isTeamAdmin(base.user.id)).toBe(true);
+      expect(await isTeamAdmin(base.user.id)).toBe(true);
     });
 
-    it("returns false when user is a regular member", () => {
-      const team = createTeam();
-      addTeamMember(team.id, base.user.id, schema.TeamMemberRole.Member);
+    it("returns false when user is a regular member", async () => {
+      const team = await createTeam();
+      await addTeamMember(team.id, base.user.id, schema.TeamMemberRole.Member);
 
-      expect(isTeamAdmin(base.user.id)).toBe(false);
+      expect(await isTeamAdmin(base.user.id)).toBe(false);
     });
 
-    it("returns false when user has no team", () => {
-      expect(isTeamAdmin(base.user.id)).toBe(false);
+    it("returns false when user has no team", async () => {
+      expect(await isTeamAdmin(base.user.id)).toBe(false);
     });
   });
 
   describe("getTeamMembers", () => {
-    it("returns all members of a team", () => {
-      const team = createTeam();
-      addTeamMember(team.id, base.user.id, schema.TeamMemberRole.Admin);
-      addTeamMember(team.id, base.instructor.id, schema.TeamMemberRole.Member);
+    it("returns all members of a team", async () => {
+      const team = await createTeam();
+      await addTeamMember(team.id, base.user.id, schema.TeamMemberRole.Admin);
+      await addTeamMember(team.id, base.instructor.id, schema.TeamMemberRole.Member);
 
-      const members = getTeamMembers(team.id);
+      const members = await getTeamMembers(team.id);
       expect(members).toHaveLength(2);
     });
 
-    it("returns empty array for a team with no members", () => {
-      const team = createTeam();
+    it("returns empty array for a team with no members", async () => {
+      const team = await createTeam();
 
-      const members = getTeamMembers(team.id);
+      const members = await getTeamMembers(team.id);
       expect(members).toHaveLength(0);
     });
   });

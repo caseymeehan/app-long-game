@@ -26,35 +26,37 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const enrolledCourses = getUserEnrolledCourses(currentUserId);
+  const enrolledCourses = await getUserEnrolledCourses(currentUserId);
 
-  const coursesWithProgress = enrolledCourses.map((enrollment) => {
-    const progress = calculateProgress(
-      currentUserId,
-      enrollment.courseId,
-      false,
-      false
-    );
-    const completedLessons = getCompletedLessonCount(
-      currentUserId,
-      enrollment.courseId
-    );
-    const totalLessons = getTotalLessonCount(enrollment.courseId);
-    const nextLesson = getNextIncompleteLesson(
-      currentUserId,
-      enrollment.courseId
-    );
-    const isCompleted = enrollment.completedAt !== null;
+  const coursesWithProgress = await Promise.all(
+    enrolledCourses.map(async (enrollment) => {
+      const progress = await calculateProgress(
+        currentUserId,
+        enrollment.courseId,
+        false,
+        false
+      );
+      const completedLessons = await getCompletedLessonCount(
+        currentUserId,
+        enrollment.courseId
+      );
+      const totalLessons = await getTotalLessonCount(enrollment.courseId);
+      const nextLesson = await getNextIncompleteLesson(
+        currentUserId,
+        enrollment.courseId
+      );
+      const isCompleted = enrollment.completedAt !== null;
 
-    return {
-      ...enrollment,
-      progress,
-      completedLessons,
-      totalLessons,
-      nextLessonId: nextLesson?.id ?? null,
-      isCompleted,
-    };
-  });
+      return {
+        ...enrollment,
+        progress,
+        completedLessons,
+        totalLessons,
+        nextLessonId: nextLesson?.id ?? null,
+        isCompleted,
+      };
+    })
+  );
 
   const completedCourses = coursesWithProgress.filter((c) => c.isCompleted);
   const inProgressCourses = coursesWithProgress.filter((c) => !c.isCompleted);

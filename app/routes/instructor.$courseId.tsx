@@ -113,7 +113,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
 
   if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
     throw data("Only instructors and admins can access this page.", {
@@ -126,7 +126,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Invalid course ID.", { status: 400 });
   }
 
-  const course = getCourseWithDetails(courseId);
+  const course = await getCourseWithDetails(courseId);
 
   if (!course) {
     throw data("Course not found.", { status: 404 });
@@ -136,17 +136,17 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("You can only edit your own courses.", { status: 403 });
   }
 
-  const lessonCount = getLessonCountForCourse(courseId);
-  const enrollmentCount = getEnrollmentCountForCourse(courseId);
+  const lessonCount = await getLessonCountForCourse(courseId);
+  const enrollmentCount = await getEnrollmentCountForCourse(courseId);
 
   // Student roster data
-  const enrolledStudents = getCourseEnrolledStudents(courseId);
+  const enrolledStudents = await getCourseEnrolledStudents(courseId);
 
   // Gather all lessons from the course modules and find which have quizzes
   const allCourseLessons = course.modules.flatMap((mod) => mod.lessons);
   const lessonQuizzes: { lessonId: number; lessonTitle: string; quizId: number; quizTitle: string }[] = [];
   for (const lesson of allCourseLessons) {
-    const quiz = getQuizByLessonId(lesson.id);
+    const quiz = await getQuizByLessonId(lesson.id);
     if (quiz) {
       lessonQuizzes.push({
         lessonId: lesson.id,
@@ -157,12 +157,12 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     }
   }
 
-  const students = enrolledStudents.map((enrollment) => {
-    const studentUser = getUserById(enrollment.userId);
-    const progress = calculateProgress(enrollment.userId, courseId, false, false);
+  const students = await Promise.all(enrolledStudents.map(async (enrollment) => {
+    const studentUser = await getUserById(enrollment.userId);
+    const progress = await calculateProgress(enrollment.userId, courseId, false, false);
 
-    const quizScores = lessonQuizzes.map((lq) => {
-      const bestAttempt = getBestAttempt(enrollment.userId, lq.quizId);
+    const quizScores = await Promise.all(lessonQuizzes.map(async (lq) => {
+      const bestAttempt = await getBestAttempt(enrollment.userId, lq.quizId);
       return {
         quizId: lq.quizId,
         quizTitle: lq.quizTitle,
@@ -170,7 +170,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         bestScore: bestAttempt?.score ?? null,
         passed: bestAttempt?.passed ?? null,
       };
-    });
+    }));
 
     return {
       userId: enrollment.userId,
@@ -181,7 +181,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
       progress,
       quizScores,
     };
-  });
+  }));
 
   const quizCount = lessonQuizzes.length;
 
@@ -195,14 +195,14 @@ export async function action({ params, request }: Route.ActionArgs) {
     throw data("You must be logged in.", { status: 401 });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
   if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
     throw data("Only instructors and admins can edit courses.", { status: 403 });
   }
 
   const { courseId } = parseParams(params, courseEditorParamsSchema);
 
-  const course = getCourseById(courseId);
+  const course = await getCourseById(courseId);
   if (!course) {
     throw data("Course not found.", { status: 404 });
   }
@@ -221,17 +221,17 @@ export async function action({ params, request }: Route.ActionArgs) {
   const { intent } = parsed.data;
 
   if (intent === "update-title") {
-    updateCourse(courseId, parsed.data.title, course.description);
+    await updateCourse(courseId, parsed.data.title, course.description);
     return { success: true, field: "title" };
   }
 
   if (intent === "update-description") {
-    updateCourse(courseId, course.title, parsed.data.description);
+    await updateCourse(courseId, course.title, parsed.data.description);
     return { success: true, field: "description" };
   }
 
   if (intent === "update-status") {
-    updateCourseStatus(courseId, parsed.data.status);
+    await updateCourseStatus(courseId, parsed.data.status);
     return { success: true, field: "status" };
   }
 
@@ -244,116 +244,116 @@ export async function action({ params, request }: Route.ActionArgs) {
       return data({ error: "Price cannot exceed $9,999.99." }, { status: 400 });
     }
     const priceCents = Math.round(priceDollars * 100);
-    updateCoursePrice(courseId, priceCents);
+    await updateCoursePrice(courseId, priceCents);
     return { success: true, field: "price" };
   }
 
   if (intent === "update-ppp-enabled") {
     const pppEnabled = parsed.data.pppEnabled === "true";
-    updateCoursePppEnabled(courseId, pppEnabled);
+    await updateCoursePppEnabled(courseId, pppEnabled);
     return { success: true, field: "ppp-enabled" };
   }
 
   if (intent === "add-module") {
-    createModule(courseId, parsed.data.title, null);
+    await createModule(courseId, parsed.data.title, null);
     return { success: true, field: "module" };
   }
 
   if (intent === "rename-module") {
     const { moduleId, title } = parsed.data;
-    const mod = getModuleById(moduleId);
+    const mod = await getModuleById(moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
     }
-    updateModuleTitle(moduleId, title);
+    await updateModuleTitle(moduleId, title);
     return { success: true, field: "module" };
   }
 
   if (intent === "delete-module") {
     const { moduleId } = parsed.data;
-    const mod = getModuleById(moduleId);
+    const mod = await getModuleById(moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
     }
-    deleteModule(moduleId);
+    await deleteModule(moduleId);
     return { success: true, field: "module" };
   }
 
   if (intent === "add-lesson") {
     const { moduleId, title } = parsed.data;
-    const mod = getModuleById(moduleId);
+    const mod = await getModuleById(moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
     }
-    createLesson(moduleId, title, null, null, null, null);
+    await createLesson(moduleId, title, null, null, null, null);
     return { success: true, field: "lesson" };
   }
 
   if (intent === "rename-lesson") {
     const { lessonId, title } = parsed.data;
-    const lesson = getLessonById(lessonId);
+    const lesson = await getLessonById(lessonId);
     if (!lesson) {
       return data({ error: "Lesson not found." }, { status: 404 });
     }
-    const mod = getModuleById(lesson.moduleId);
+    const mod = await getModuleById(lesson.moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Lesson not found in this course." }, { status: 404 });
     }
-    updateLessonTitle(lessonId, title);
+    await updateLessonTitle(lessonId, title);
     return { success: true, field: "lesson" };
   }
 
   if (intent === "reorder-modules") {
     const moduleIds: number[] = JSON.parse(parsed.data.moduleIds);
-    reorderModules(courseId, moduleIds);
+    await reorderModules(courseId, moduleIds);
     return { success: true, field: "module-reorder" };
   }
 
   if (intent === "reorder-lessons") {
     const { moduleId, lessonIds: lessonIdsJson } = parsed.data;
-    const mod = getModuleById(moduleId);
+    const mod = await getModuleById(moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
     }
     const lessonIds: number[] = JSON.parse(lessonIdsJson);
-    reorderLessons(moduleId, lessonIds);
+    await reorderLessons(moduleId, lessonIds);
     return { success: true, field: "lesson-reorder" };
   }
 
   if (intent === "move-lesson") {
     const { lessonId, targetModuleId, targetPosition } = parsed.data;
-    const lesson = getLessonById(lessonId);
+    const lesson = await getLessonById(lessonId);
     if (!lesson) {
       return data({ error: "Lesson not found." }, { status: 404 });
     }
-    const sourceMod = getModuleById(lesson.moduleId);
+    const sourceMod = await getModuleById(lesson.moduleId);
     if (!sourceMod || sourceMod.courseId !== courseId) {
       return data({ error: "Lesson not found in this course." }, { status: 404 });
     }
-    const targetMod = getModuleById(targetModuleId);
+    const targetMod = await getModuleById(targetModuleId);
     if (!targetMod || targetMod.courseId !== courseId) {
       return data({ error: "Target module not found in this course." }, { status: 404 });
     }
-    moveLessonToModule(lessonId, targetModuleId, targetPosition);
+    await moveLessonToModule(lessonId, targetModuleId, targetPosition);
     return { success: true, field: "lesson-move" };
   }
 
   if (intent === "delete-lesson") {
     const { lessonId } = parsed.data;
-    const lesson = getLessonById(lessonId);
+    const lesson = await getLessonById(lessonId);
     if (!lesson) {
       return data({ error: "Lesson not found." }, { status: 404 });
     }
-    const mod = getModuleById(lesson.moduleId);
+    const mod = await getModuleById(lesson.moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Lesson not found in this course." }, { status: 404 });
     }
-    deleteLesson(lessonId);
+    await deleteLesson(lessonId);
     return { success: true, field: "lesson" };
   }
 
   if (intent === "update-sales-copy") {
-    updateCourseSalesCopy(courseId, parsed.data.salesCopy || null);
+    await updateCourseSalesCopy(courseId, parsed.data.salesCopy || null);
     return { success: true, field: "sales-copy" };
   }
 

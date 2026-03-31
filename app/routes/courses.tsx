@@ -28,7 +28,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const search = url.searchParams.get("q");
   const category = url.searchParams.get("category");
 
-  const courses = buildCourseQuery(
+  const courses = await buildCourseQuery(
     search,
     category,
     CourseStatus.Published,
@@ -46,30 +46,30 @@ export async function loader({ request }: Route.LoaderArgs) {
     { progress: number; completedLessons: number }
   >();
   if (currentUserId) {
-    const enrollments = getUserEnrolledCourses(currentUserId);
+    const enrollments = await getUserEnrolledCourses(currentUserId);
     for (const enrollment of enrollments) {
       progressMap.set(enrollment.courseId, {
-        progress: calculateProgress(currentUserId, enrollment.courseId, false, false),
-        completedLessons: getCompletedLessonCount(currentUserId, enrollment.courseId),
+        progress: await calculateProgress(currentUserId, enrollment.courseId, false, false),
+        completedLessons: await getCompletedLessonCount(currentUserId, enrollment.courseId),
       });
     }
   }
 
-  const coursesWithLessonCount = courses.map((course) => {
+  const coursesWithLessonCount = await Promise.all(courses.map(async (course) => {
     const userProgress = progressMap.get(course.id);
     const pppPrice = course.pppEnabled
       ? calculatePppPrice(course.price, country)
       : course.price;
     return {
       ...course,
-      lessonCount: getLessonCountForCourse(course.id),
+      lessonCount: await getLessonCountForCourse(course.id),
       progress: userProgress?.progress ?? null,
       completedLessons: userProgress?.completedLessons ?? null,
       pppPrice,
     };
-  });
+  }));
 
-  const categories = getAllCategories();
+  const categories = await getAllCategories();
 
   return { courses: coursesWithLessonCount, categories, search, category, currentUserId };
 }

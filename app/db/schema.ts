@@ -1,4 +1,12 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import {
+  pgTable,
+  serial,
+  text,
+  integer,
+  real,
+  boolean,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export enum UserRole {
   Student = "student",
@@ -30,26 +38,27 @@ export enum TeamMemberRole {
 
 // ─── Tables ───
 
-export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   role: text("role").notNull().$type<UserRole>(),
   avatarUrl: text("avatar_url"),
   bio: text("bio"),
+  supabaseAuthId: text("supabase_auth_id").unique(),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const categories = sqliteTable("categories", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const categories = pgTable("categories", {
+  id: serial("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
 });
 
-export const courses = sqliteTable("courses", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const courses = pgTable("courses", {
+  id: serial("id").primaryKey(),
   title: text("title").notNull(),
   slug: text("slug").notNull().unique(),
   description: text("description").notNull(),
@@ -63,9 +72,7 @@ export const courses = sqliteTable("courses", {
   status: text("status").notNull().$type<CourseStatus>(),
   coverImageUrl: text("cover_image_url"),
   price: integer("price").notNull().default(0),
-  pppEnabled: integer("ppp_enabled", { mode: "boolean" })
-    .notNull()
-    .default(true),
+  pppEnabled: boolean("ppp_enabled").notNull().default(true),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
@@ -74,8 +81,8 @@ export const courses = sqliteTable("courses", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const modules = sqliteTable("modules", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const modules = pgTable("modules", {
+  id: serial("id").primaryKey(),
   courseId: integer("course_id")
     .notNull()
     .references(() => courses.id),
@@ -86,8 +93,8 @@ export const modules = sqliteTable("modules", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const lessons = sqliteTable("lessons", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const lessons = pgTable("lessons", {
+  id: serial("id").primaryKey(),
   moduleId: integer("module_id")
     .notNull()
     .references(() => modules.id),
@@ -102,8 +109,8 @@ export const lessons = sqliteTable("lessons", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const enrollments = sqliteTable("enrollments", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const enrollments = pgTable("enrollments", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
     .references(() => users.id),
@@ -116,8 +123,8 @@ export const enrollments = sqliteTable("enrollments", {
   completedAt: text("completed_at"),
 });
 
-export const lessonProgress = sqliteTable("lesson_progress", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const lessonProgress = pgTable("lesson_progress", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
     .references(() => users.id),
@@ -128,8 +135,8 @@ export const lessonProgress = sqliteTable("lesson_progress", {
   completedAt: text("completed_at"),
 });
 
-export const quizzes = sqliteTable("quizzes", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const quizzes = pgTable("quizzes", {
+  id: serial("id").primaryKey(),
   lessonId: integer("lesson_id")
     .notNull()
     .references(() => lessons.id),
@@ -137,8 +144,8 @@ export const quizzes = sqliteTable("quizzes", {
   passingScore: real("passing_score").notNull(),
 });
 
-export const quizQuestions = sqliteTable("quiz_questions", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const quizQuestions = pgTable("quiz_questions", {
+  id: serial("id").primaryKey(),
   quizId: integer("quiz_id")
     .notNull()
     .references(() => quizzes.id),
@@ -147,17 +154,17 @@ export const quizQuestions = sqliteTable("quiz_questions", {
   position: integer("position").notNull(),
 });
 
-export const quizOptions = sqliteTable("quiz_options", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const quizOptions = pgTable("quiz_options", {
+  id: serial("id").primaryKey(),
   questionId: integer("question_id")
     .notNull()
     .references(() => quizQuestions.id),
   optionText: text("option_text").notNull(),
-  isCorrect: integer("is_correct", { mode: "boolean" }).notNull(),
+  isCorrect: boolean("is_correct").notNull(),
 });
 
-export const quizAttempts = sqliteTable("quiz_attempts", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const quizAttempts = pgTable("quiz_attempts", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
     .references(() => users.id),
@@ -165,14 +172,14 @@ export const quizAttempts = sqliteTable("quiz_attempts", {
     .notNull()
     .references(() => quizzes.id),
   score: real("score").notNull(),
-  passed: integer("passed", { mode: "boolean" }).notNull(),
+  passed: boolean("passed").notNull(),
   attemptedAt: text("attempted_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const quizAnswers = sqliteTable("quiz_answers", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const quizAnswers = pgTable("quiz_answers", {
+  id: serial("id").primaryKey(),
   attemptId: integer("attempt_id")
     .notNull()
     .references(() => quizAttempts.id),
@@ -184,8 +191,8 @@ export const quizAnswers = sqliteTable("quiz_answers", {
     .references(() => quizOptions.id),
 });
 
-export const purchases = sqliteTable("purchases", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const purchases = pgTable("purchases", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
     .references(() => users.id),
@@ -199,15 +206,15 @@ export const purchases = sqliteTable("purchases", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const teams = sqliteTable("teams", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const teams = pgTable("teams", {
+  id: serial("id").primaryKey(),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const teamMembers = sqliteTable("team_members", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const teamMembers = pgTable("team_members", {
+  id: serial("id").primaryKey(),
   teamId: integer("team_id")
     .notNull()
     .references(() => teams.id),
@@ -220,8 +227,8 @@ export const teamMembers = sqliteTable("team_members", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const coupons = sqliteTable("coupons", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const coupons = pgTable("coupons", {
+  id: serial("id").primaryKey(),
   teamId: integer("team_id")
     .notNull()
     .references(() => teams.id),
@@ -239,8 +246,8 @@ export const coupons = sqliteTable("coupons", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const videoWatchEvents = sqliteTable("video_watch_events", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const videoWatchEvents = pgTable("video_watch_events", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
     .references(() => users.id),

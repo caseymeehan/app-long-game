@@ -11,7 +11,7 @@ function generateCode(): string {
   return crypto.randomBytes(12).toString("base64url");
 }
 
-export function generateCoupons(
+export async function generateCoupons(
   teamId: number,
   courseId: number,
   purchaseId: number,
@@ -19,7 +19,7 @@ export function generateCoupons(
 ) {
   const created: (typeof coupons.$inferSelect)[] = [];
   for (let i = 0; i < quantity; i++) {
-    const coupon = db
+    const [coupon] = await db
       .insert(coupons)
       .values({
         teamId,
@@ -27,39 +27,38 @@ export function generateCoupons(
         code: generateCode(),
         purchaseId,
       })
-      .returning()
-      .get();
+      .returning();
     created.push(coupon);
   }
   return created;
 }
 
-export function getCouponByCode(code: string) {
-  return db.select().from(coupons).where(eq(coupons.code, code)).get();
+export async function getCouponByCode(code: string) {
+  const [row] = await db.select().from(coupons).where(eq(coupons.code, code));
+  return row;
 }
 
-export function getCouponsForTeam(teamId: number, courseId?: number) {
+export async function getCouponsForTeam(teamId: number, courseId?: number) {
   if (courseId !== undefined) {
     return db
       .select()
       .from(coupons)
-      .where(and(eq(coupons.teamId, teamId), eq(coupons.courseId, courseId)))
-      .all();
+      .where(and(eq(coupons.teamId, teamId), eq(coupons.courseId, courseId)));
   }
-  return db.select().from(coupons).where(eq(coupons.teamId, teamId)).all();
+  return db.select().from(coupons).where(eq(coupons.teamId, teamId));
 }
 
 export type RedeemResult =
   | { ok: true; enrollment: typeof enrollments.$inferSelect }
   | { ok: false; error: string };
 
-export function redeemCoupon(
+export async function redeemCoupon(
   code: string,
   userId: number,
   userCountry: string
-): RedeemResult {
+): Promise<RedeemResult> {
   // 1. Find the coupon
-  const coupon = getCouponByCode(code);
+  const coupon = await getCouponByCode(code);
   if (!coupon) {
     return { ok: false, error: "Coupon not found" };
   }
@@ -70,7 +69,7 @@ export function redeemCoupon(
   }
 
   // 3. Check if user is already enrolled
-  const existingEnrollment = db
+  const [existingEnrollment] = await db
     .select()
     .from(enrollments)
     .where(
@@ -78,19 +77,17 @@ export function redeemCoupon(
         eq(enrollments.userId, userId),
         eq(enrollments.courseId, coupon.courseId)
       )
-    )
-    .get();
+    );
 
   if (existingEnrollment) {
     return { ok: false, error: "You are already enrolled in this course" };
   }
 
   // 4. Country check: match purchaser's country
-  const purchase = db
+  const [purchase] = await db
     .select()
     .from(purchases)
-    .where(eq(purchases.id, coupon.purchaseId))
-    .get();
+    .where(eq(purchases.id, coupon.purchaseId));
 
   if (purchase?.country && purchase.country !== userCountry) {
     return {
@@ -101,19 +98,17 @@ export function redeemCoupon(
   }
 
   // 5. Redeem: mark coupon consumed + enroll user
-  db.update(coupons)
+  await db.update(coupons)
     .set({
       redeemedByUserId: userId,
       redeemedAt: new Date().toISOString(),
     })
-    .where(eq(coupons.id, coupon.id))
-    .run();
+    .where(eq(coupons.id, coupon.id));
 
-  const enrollment = db
+  const [enrollment] = await db
     .insert(enrollments)
     .values({ userId, courseId: coupon.courseId })
-    .returning()
-    .get();
+    .returning();
 
   return { ok: true, enrollment };
 }

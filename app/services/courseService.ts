@@ -13,43 +13,43 @@ import {
 // Handles course CRUD, search, category filtering, and status transitions.
 // Uses positional parameters (project convention).
 
-export function getAllCourses() {
-  return db.select().from(courses).all();
+export async function getAllCourses() {
+  return await db.select().from(courses);
 }
 
-export function getCourseById(id: number) {
-  return db.select().from(courses).where(eq(courses.id, id)).get();
+export async function getCourseById(id: number) {
+  const [course] = await db.select().from(courses).where(eq(courses.id, id));
+  return course;
 }
 
-export function getCourseBySlug(slug: string) {
-  return db.select().from(courses).where(eq(courses.slug, slug)).get();
+export async function getCourseBySlug(slug: string) {
+  const [course] = await db.select().from(courses).where(eq(courses.slug, slug));
+  return course;
 }
 
-export function getCoursesByInstructor(instructorId: number) {
-  return db
+export async function getCoursesByInstructor(instructorId: number) {
+  return await db
     .select()
     .from(courses)
-    .where(eq(courses.instructorId, instructorId))
-    .all();
+    .where(eq(courses.instructorId, instructorId));
 }
 
-export function getCoursesByCategory(categoryId: number) {
-  return db
+export async function getCoursesByCategory(categoryId: number) {
+  return await db
     .select()
     .from(courses)
-    .where(eq(courses.categoryId, categoryId))
-    .all();
+    .where(eq(courses.categoryId, categoryId));
 }
 
-export function getCoursesByStatus(status: CourseStatus) {
-  return db.select().from(courses).where(eq(courses.status, status)).all();
+export async function getCoursesByStatus(status: CourseStatus) {
+  return await db.select().from(courses).where(eq(courses.status, status));
 }
 
-export function getPublishedCourses() {
-  return getCoursesByStatus(CourseStatus.Published);
+export async function getPublishedCourses() {
+  return await getCoursesByStatus(CourseStatus.Published);
 }
 
-export function buildCourseQuery(
+export async function buildCourseQuery(
   search: string | null,
   category: string | null,
   status: CourseStatus | null,
@@ -107,11 +107,11 @@ export function buildCourseQuery(
         ? filtered.orderBy(courses.createdAt)
         : filtered.orderBy(sql`${courses.createdAt} DESC`);
 
-  return sorted.limit(limit).offset(offset).all();
+  return await sorted.limit(limit).offset(offset);
 }
 
-export function getCourseWithDetails(id: number) {
-  const course = db
+export async function getCourseWithDetails(id: number) {
+  const [course] = await db
     .select({
       id: courses.id,
       title: courses.title,
@@ -134,28 +134,25 @@ export function getCourseWithDetails(id: number) {
     .from(courses)
     .innerJoin(users, eq(courses.instructorId, users.id))
     .innerJoin(categories, eq(courses.categoryId, categories.id))
-    .where(eq(courses.id, id))
-    .get();
+    .where(eq(courses.id, id));
 
   if (!course) return null;
 
-  const courseModules = db
+  const courseModules = await db
     .select()
     .from(modules)
     .where(eq(modules.courseId, id))
-    .orderBy(modules.position)
-    .all();
+    .orderBy(modules.position);
 
   const moduleIds = courseModules.map((m) => m.id);
 
   const courseLessons =
     moduleIds.length > 0
-      ? db
+      ? await db
           .select()
           .from(lessons)
           .where(or(...moduleIds.map((mid) => eq(lessons.moduleId, mid)))!)
           .orderBy(lessons.position)
-          .all()
       : [];
 
   return {
@@ -167,25 +164,23 @@ export function getCourseWithDetails(id: number) {
   };
 }
 
-export function getLessonCountForCourse(courseId: number) {
-  const courseModules = db
+export async function getLessonCountForCourse(courseId: number) {
+  const courseModules = await db
     .select({ id: modules.id })
     .from(modules)
-    .where(eq(modules.courseId, courseId))
-    .all();
+    .where(eq(modules.courseId, courseId));
 
   if (courseModules.length === 0) return 0;
 
-  const count = db
+  const [count] = await db
     .select({ count: sql<number>`count(*)` })
     .from(lessons)
-    .where(or(...courseModules.map((m) => eq(lessons.moduleId, m.id)))!)
-    .get();
+    .where(or(...courseModules.map((m) => eq(lessons.moduleId, m.id)))!);
 
   return count?.count ?? 0;
 }
 
-export function createCourse(
+export async function createCourse(
   title: string,
   slug: string,
   description: string,
@@ -193,7 +188,7 @@ export function createCourse(
   categoryId: number,
   coverImageUrl: string | null
 ) {
-  return db
+  const [course] = await db
     .insert(courses)
     .values({
       title,
@@ -204,55 +199,56 @@ export function createCourse(
       status: CourseStatus.Draft,
       coverImageUrl,
     })
-    .returning()
-    .get();
+    .returning();
+  return course;
 }
 
-export function updateCourse(id: number, title: string, description: string) {
-  return db
+export async function updateCourse(id: number, title: string, description: string) {
+  const [course] = await db
     .update(courses)
     .set({ title, description, updatedAt: new Date().toISOString() })
     .where(eq(courses.id, id))
-    .returning()
-    .get();
+    .returning();
+  return course;
 }
 
-export function updateCourseStatus(id: number, status: CourseStatus) {
-  return db
+export async function updateCourseStatus(id: number, status: CourseStatus) {
+  const [course] = await db
     .update(courses)
     .set({ status, updatedAt: new Date().toISOString() })
     .where(eq(courses.id, id))
-    .returning()
-    .get();
+    .returning();
+  return course;
 }
 
-export function updateCourseSalesCopy(id: number, salesCopy: string | null) {
-  return db
+export async function updateCourseSalesCopy(id: number, salesCopy: string | null) {
+  const [course] = await db
     .update(courses)
     .set({ salesCopy, updatedAt: new Date().toISOString() })
     .where(eq(courses.id, id))
-    .returning()
-    .get();
+    .returning();
+  return course;
 }
 
-export function updateCoursePrice(id: number, price: number) {
-  return db
+export async function updateCoursePrice(id: number, price: number) {
+  const [course] = await db
     .update(courses)
     .set({ price, updatedAt: new Date().toISOString() })
     .where(eq(courses.id, id))
-    .returning()
-    .get();
+    .returning();
+  return course;
 }
 
-export function updateCoursePppEnabled(id: number, pppEnabled: boolean) {
-  return db
+export async function updateCoursePppEnabled(id: number, pppEnabled: boolean) {
+  const [course] = await db
     .update(courses)
     .set({ pppEnabled, updatedAt: new Date().toISOString() })
     .where(eq(courses.id, id))
-    .returning()
-    .get();
+    .returning();
+  return course;
 }
 
-export function deleteCourse(id: number) {
-  return db.delete(courses).where(eq(courses.id, id)).returning().get();
+export async function deleteCourse(id: number) {
+  const [course] = await db.delete(courses).where(eq(courses.id, id)).returning();
+  return course;
 }

@@ -43,7 +43,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
 
   if (
     !user ||
@@ -61,7 +61,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   const { courseId, moduleId } = parsed.data;
 
-  const course = getCourseById(courseId);
+  const course = await getCourseById(courseId);
   if (!course) {
     throw data("Course not found.", { status: 404 });
   }
@@ -70,12 +70,12 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("You can only view your own courses.", { status: 403 });
   }
 
-  const courseWithDetails = getCourseWithDetails(courseId);
+  const courseWithDetails = await getCourseWithDetails(courseId);
   if (!courseWithDetails) {
     throw data("Course not found.", { status: 404 });
   }
 
-  const moduleWithLessons = getModuleWithLessons(moduleId);
+  const moduleWithLessons = await getModuleWithLessons(moduleId);
   if (!moduleWithLessons) {
     throw data("Module not found.", { status: 404 });
   }

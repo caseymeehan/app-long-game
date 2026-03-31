@@ -6,24 +6,25 @@ import { teams, teamMembers, TeamMemberRole } from "~/db/schema";
 // Handles team creation, admin assignment, and team lookup by user.
 // One team per user (auto-created on first team purchase).
 
-export function createTeam() {
-  return db.insert(teams).values({}).returning().get();
+export async function createTeam() {
+  const [row] = await db.insert(teams).values({}).returning();
+  return row;
 }
 
-export function addTeamMember(
+export async function addTeamMember(
   teamId: number,
   userId: number,
   role: TeamMemberRole
 ) {
-  return db
+  const [row] = await db
     .insert(teamMembers)
     .values({ teamId, userId, role })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function getTeamForAdmin(userId: number) {
-  const membership = db
+export async function getTeamForAdmin(userId: number) {
+  const [membership] = await db
     .select()
     .from(teamMembers)
     .where(
@@ -31,31 +32,30 @@ export function getTeamForAdmin(userId: number) {
         eq(teamMembers.userId, userId),
         eq(teamMembers.role, TeamMemberRole.Admin)
       )
-    )
-    .get();
+    );
 
   if (!membership) return undefined;
 
-  return db.select().from(teams).where(eq(teams.id, membership.teamId)).get();
-}
-
-export function getOrCreateTeamForUser(userId: number) {
-  const existingTeam = getTeamForAdmin(userId);
-  if (existingTeam) return existingTeam;
-
-  const team = createTeam();
-  addTeamMember(team.id, userId, TeamMemberRole.Admin);
+  const [team] = await db.select().from(teams).where(eq(teams.id, membership.teamId));
   return team;
 }
 
-export function isTeamAdmin(userId: number) {
-  return !!getTeamForAdmin(userId);
+export async function getOrCreateTeamForUser(userId: number) {
+  const existingTeam = await getTeamForAdmin(userId);
+  if (existingTeam) return existingTeam;
+
+  const team = await createTeam();
+  await addTeamMember(team.id, userId, TeamMemberRole.Admin);
+  return team;
 }
 
-export function getTeamMembers(teamId: number) {
+export async function isTeamAdmin(userId: number) {
+  return !!(await getTeamForAdmin(userId));
+}
+
+export async function getTeamMembers(teamId: number) {
   return db
     .select()
     .from(teamMembers)
-    .where(eq(teamMembers.teamId, teamId))
-    .all();
+    .where(eq(teamMembers.teamId, teamId));
 }

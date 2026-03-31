@@ -28,7 +28,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
 
   if (!user || user.role !== UserRole.Instructor) {
     throw data("Only instructors can access this page.", {
@@ -36,11 +36,11 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const instructorCourses = getCoursesByInstructor(currentUserId);
+  const instructorCourses = await getCoursesByInstructor(currentUserId);
 
-  const coursesWithStats = instructorCourses.map((course) => {
-    const lessonCount = getLessonCountForCourse(course.id);
-    const enrollmentCount = getEnrollmentCountForCourse(course.id);
+  const coursesWithStats = await Promise.all(instructorCourses.map(async (course) => {
+    const lessonCount = await getLessonCountForCourse(course.id);
+    const enrollmentCount = await getEnrollmentCountForCourse(course.id);
 
     return {
       id: course.id,
@@ -54,7 +54,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       createdAt: course.createdAt,
       updatedAt: course.updatedAt,
     };
-  });
+  }));
 
   return { courses: coursesWithStats };
 }

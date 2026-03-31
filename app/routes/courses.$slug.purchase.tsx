@@ -56,7 +56,7 @@ export function meta({ data: loaderData }: Route.MetaArgs) {
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const slug = params.slug;
-  const course = getCourseBySlug(slug);
+  const course = await getCourseBySlug(slug);
 
   if (!course) {
     throw data("Course not found.", { status: 404 });
@@ -76,19 +76,19 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const mode = url.searchParams.get("mode");
 
-  const enrolled = isUserEnrolled(currentUserId, course.id);
+  const enrolled = await isUserEnrolled(currentUserId, course.id);
 
   if (enrolled && mode !== "team") {
     throw redirect(`/courses/${slug}?already_enrolled=1`);
   }
 
-  const courseWithDetails = getCourseWithDetails(course.id);
+  const courseWithDetails = await getCourseWithDetails(course.id);
   if (!courseWithDetails) {
     throw data("Course not found.", { status: 404 });
   }
 
-  const lessonCount = getLessonCountForCourse(course.id);
-  const enrollmentCount = getEnrollmentCountForCourse(course.id);
+  const lessonCount = await getLessonCountForCourse(course.id);
+  const enrollmentCount = await getEnrollmentCountForCourse(course.id);
 
   const totalDuration = courseWithDetails.modules.reduce(
     (sum, mod) =>
@@ -120,7 +120,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
 export async function action({ params, request }: Route.ActionArgs) {
   const { slug } = parseParams(params, purchaseParamsSchema);
-  const course = getCourseBySlug(slug);
+  const course = await getCourseBySlug(slug);
 
   if (!course) {
     throw data("Course not found.", { status: 404 });
@@ -144,18 +144,18 @@ export async function action({ params, request }: Route.ActionArgs) {
     : course.price;
 
   if (parsed.data.intent === "confirm-purchase") {
-    if (isUserEnrolled(currentUserId, course.id)) {
+    if (await isUserEnrolled(currentUserId, course.id)) {
       throw redirect(`/courses/${slug}`);
     }
-    createPurchase(currentUserId, course.id, pppPrice, country);
-    enrollUser(currentUserId, course.id, false, false);
+    await createPurchase(currentUserId, course.id, pppPrice, country);
+    await enrollUser(currentUserId, course.id, false, false);
     throw redirect(`/courses/${slug}/welcome`);
   }
 
   // Team purchase — user does NOT get enrolled themselves
   const { quantity } = parsed.data;
   const totalPrice = pppPrice * quantity;
-  createTeamPurchase(currentUserId, course.id, totalPrice, country, quantity);
+  await createTeamPurchase(currentUserId, course.id, totalPrice, country, quantity);
   throw redirect(`/team`);
 }
 

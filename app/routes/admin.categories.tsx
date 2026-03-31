@@ -52,7 +52,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const currentUser = getUserById(currentUserId);
+  const currentUser = await getUserById(currentUserId);
 
   if (!currentUser || currentUser.role !== UserRole.Admin) {
     throw data("Only admins can access this page.", {
@@ -60,7 +60,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const categories = getAllCategoriesWithCourseCounts();
+  const categories = await getAllCategoriesWithCourseCounts();
 
   return { categories };
 }
@@ -72,7 +72,7 @@ export async function action({ request }: Route.ActionArgs) {
     throw data("You must be logged in.", { status: 401 });
   }
 
-  const currentUser = getUserById(currentUserId);
+  const currentUser = await getUserById(currentUserId);
   if (!currentUser || currentUser.role !== UserRole.Admin) {
     throw data("Only admins can manage categories.", { status: 403 });
   }
@@ -91,7 +91,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (intent === "create") {
     try {
-      createCategory(parsed.data.name);
+      await createCategory(parsed.data.name);
       return { success: true, message: "Category created." };
     } catch (e) {
       return data(
@@ -103,7 +103,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (intent === "update") {
     try {
-      updateCategory(parsed.data.categoryId, parsed.data.name);
+      await updateCategory(parsed.data.categoryId, parsed.data.name);
       return { success: true, message: "Category updated." };
     } catch (e) {
       return data(
@@ -115,7 +115,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (intent === "delete") {
     try {
-      deleteCategory(parsed.data.categoryId);
+      await deleteCategory(parsed.data.categoryId);
       return { success: true, message: "Category deleted." };
     } catch (e) {
       return data(

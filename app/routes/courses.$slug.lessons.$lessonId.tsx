@@ -107,22 +107,22 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Invalid lesson ID", { status: 400 });
   }
 
-  const course = getCourseBySlug(slug);
+  const course = await getCourseBySlug(slug);
   if (!course) {
     throw data("Course not found", { status: 404 });
   }
 
-  const courseWithDetails = getCourseWithDetails(course.id);
+  const courseWithDetails = await getCourseWithDetails(course.id);
   if (!courseWithDetails) {
     throw data("Course not found", { status: 404 });
   }
 
-  const lesson = getLessonById(lessonId);
+  const lesson = await getLessonById(lessonId);
   if (!lesson) {
     throw data("Lesson not found", { status: 404 });
   }
 
-  const mod = getModuleById(lesson.moduleId);
+  const mod = await getModuleById(lesson.moduleId);
   if (!mod) {
     throw data("Module not found", { status: 404 });
   }
@@ -140,16 +140,16 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   let lessonProgressMap: Record<number, string> = {};
 
   if (currentUserId) {
-    enrolled = isUserEnrolled(currentUserId, course.id);
+    enrolled = await isUserEnrolled(currentUserId, course.id);
 
     if (enrolled) {
       // Mark lesson as in-progress when viewed
-      markLessonInProgress(currentUserId, lessonId);
-      const progress = getLessonProgress(currentUserId, lessonId);
+      await markLessonInProgress(currentUserId, lessonId);
+      const progress = await getLessonProgress(currentUserId, lessonId);
       lessonStatus = progress?.status ?? null;
 
       // Get progress for all lessons in course (for curriculum sidebar)
-      const progressRecords = getLessonProgressForCourse(
+      const progressRecords = await getLessonProgressForCourse(
         currentUserId,
         course.id
       );
@@ -159,10 +159,10 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
       // Get video watch state for resume and progress display
       if (lesson.videoUrl) {
-        lastWatchPosition = getLastWatchPosition(currentUserId, lessonId);
+        lastWatchPosition = await getLastWatchPosition(currentUserId, lessonId);
         const videoDurationSeconds = (lesson.durationMinutes ?? 0) * 60;
         if (videoDurationSeconds > 0) {
-          watchProgress = calculateWatchProgress(
+          watchProgress = await calculateWatchProgress(
             currentUserId,
             lessonId,
             videoDurationSeconds
@@ -178,7 +178,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   let pppPurchaseCountry: string | null = null;
 
   if (enrolled && currentUserId) {
-    const purchase = findPurchase(currentUserId, course.id);
+    const purchase = await findPurchase(currentUserId, course.id);
     const currentCountry = await resolveCountry(request);
     const pppResult = checkPppAccess(
       course.price,
@@ -204,7 +204,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null;
 
   // Check for quiz attached to this lesson
-  const quizRecord = getQuizByLessonId(lessonId);
+  const quizRecord = await getQuizByLessonId(lessonId);
   let quiz: {
     id: number;
     title: string;
@@ -220,7 +220,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   let bestAttempt: { score: number; passed: boolean } | null = null;
 
   if (quizRecord) {
-    const quizData = getQuizWithQuestions(quizRecord.id);
+    const quizData = await getQuizWithQuestions(quizRecord.id);
     if (quizData) {
       // Strip isCorrect from options so answers aren't leaked to the client
       quiz = {
@@ -241,7 +241,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     }
 
     if (currentUserId) {
-      const best = getBestAttempt(currentUserId, quizRecord.id);
+      const best = await getBestAttempt(currentUserId, quizRecord.id);
       if (best) {
         bestAttempt = { score: best.score, passed: best.passed };
       }
@@ -287,7 +287,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 export async function action({ params, request }: Route.ActionArgs) {
   const { slug, lessonId } = parseParams(params, lessonParamsSchema);
 
-  const course = getCourseBySlug(slug);
+  const course = await getCourseBySlug(slug);
   if (!course) {
     throw data("Course not found", { status: 404 });
   }
@@ -301,7 +301,7 @@ export async function action({ params, request }: Route.ActionArgs) {
   const intent = formData.get("intent");
 
   if (intent === "mark-complete") {
-    markLessonComplete(currentUserId, lessonId);
+    await markLessonComplete(currentUserId, lessonId);
     return { success: true };
   }
 
@@ -323,7 +323,7 @@ export async function action({ params, request }: Route.ActionArgs) {
       }
     }
 
-    const result = computeResult(currentUserId, quizId, selectedAnswers);
+    const result = await computeResult(currentUserId, quizId, selectedAnswers);
     if (!result) {
       throw data("Failed to score quiz", { status: 500 });
     }

@@ -36,7 +36,7 @@ export function meta({ data: loaderData }: Route.MetaArgs) {
 export async function loader({ params, request }: Route.LoaderArgs) {
   const { code } = parseParams(params, redeemParamsSchema);
 
-  const coupon = getCouponByCode(code);
+  const coupon = await getCouponByCode(code);
   if (!coupon) {
     throw data("Coupon not found.", { status: 404 });
   }
@@ -48,23 +48,22 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     );
   }
 
-  const course = getCourseById(coupon.courseId);
+  const course = await getCourseById(coupon.courseId);
   if (!course) {
     throw data("Course not found.", { status: 404 });
   }
 
   const alreadyRedeemed = coupon.redeemedByUserId !== null;
-  const alreadyEnrolled = isUserEnrolled(currentUserId, coupon.courseId);
+  const alreadyEnrolled = await isUserEnrolled(currentUserId, coupon.courseId);
 
   // Check country mismatch upfront so we can show a clear message
   let countryMismatch = false;
   if (!alreadyRedeemed && !alreadyEnrolled) {
     const userCountry = await resolveCountry(request);
-    const purchase = db
+    const [purchase] = await db
       .select()
       .from(purchases)
-      .where(eq(purchases.id, coupon.purchaseId))
-      .get();
+      .where(eq(purchases.id, coupon.purchaseId));
     if (purchase?.country && purchase.country !== (userCountry ?? "")) {
       countryMismatch = true;
     }
@@ -95,13 +94,13 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   const userCountry = await resolveCountry(request);
-  const result = redeemCoupon(code, currentUserId, userCountry ?? "");
+  const result = await redeemCoupon(code, currentUserId, userCountry ?? "");
 
   if (!result.ok) {
     return data({ error: result.error }, { status: 400 });
   }
 
-  const course = getCourseById(result.enrollment.courseId);
+  const course = await getCourseById(result.enrollment.courseId);
   if (!course) {
     throw redirect("/courses");
   }

@@ -15,35 +15,37 @@ import { getCountryTierInfo, COUNTRIES } from "~/lib/ppp";
 import { isTeamAdmin } from "~/services/teamService";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const users = getAllUsers();
+  const users = await getAllUsers();
   const currentUserId = await getCurrentUserId(request);
-  const currentUser = currentUserId ? getUserById(currentUserId) : null;
+  const currentUser = currentUserId ? await getUserById(currentUserId) : null;
   const devCountry = await getDevCountry(request);
   const countryTierInfo = getCountryTierInfo(devCountry);
 
   const recentCourses = currentUserId
-    ? getRecentlyProgressedCourses(currentUserId).map((course) => {
-        const completedLessons = getCompletedLessonCount(
-          currentUserId,
-          course.courseId
-        );
-        const totalLessons = getTotalLessonCount(course.courseId);
-        const progress = calculateProgress(
-          currentUserId,
-          course.courseId,
-          false,
-          false
-        );
-        return {
-          courseId: course.courseId,
-          title: course.courseTitle,
-          slug: course.courseSlug,
-          coverImageUrl: course.coverImageUrl,
-          completedLessons,
-          totalLessons,
-          progress,
-        };
-      })
+    ? await Promise.all(
+        (await getRecentlyProgressedCourses(currentUserId)).map(async (course) => {
+          const completedLessons = await getCompletedLessonCount(
+            currentUserId,
+            course.courseId
+          );
+          const totalLessons = await getTotalLessonCount(course.courseId);
+          const progress = await calculateProgress(
+            currentUserId,
+            course.courseId,
+            false,
+            false
+          );
+          return {
+            courseId: course.courseId,
+            title: course.courseTitle,
+            slug: course.courseSlug,
+            coverImageUrl: course.coverImageUrl,
+            completedLessons,
+            totalLessons,
+            progress,
+          };
+        })
+      )
     : [];
 
   return {
@@ -60,7 +62,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     devCountry,
     countryTierInfo,
     countries: COUNTRIES,
-    isTeamAdmin: currentUserId ? isTeamAdmin(currentUserId) : false,
+    isTeamAdmin: currentUserId ? await isTeamAdmin(currentUserId) : false,
   };
 }
 

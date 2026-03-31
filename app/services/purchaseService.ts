@@ -8,50 +8,49 @@ import { generateCoupons } from "./couponService";
 // Handles purchase records (transaction log separate from enrollments).
 // Uses positional parameters (project convention).
 
-export function createPurchase(
+export async function createPurchase(
   userId: number,
   courseId: number,
   pricePaid: number,
   country: string | null
 ) {
-  return db
+  const [row] = await db
     .insert(purchases)
     .values({ userId, courseId, pricePaid, country })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function findPurchase(userId: number, courseId: number) {
+export async function findPurchase(userId: number, courseId: number) {
+  const [row] = await db
+    .select()
+    .from(purchases)
+    .where(and(eq(purchases.userId, userId), eq(purchases.courseId, courseId)));
+  return row;
+}
+
+export async function getPurchasesByUser(userId: number) {
+  return db.select().from(purchases).where(eq(purchases.userId, userId));
+}
+
+export async function getPurchasesByCourse(courseId: number) {
   return db
     .select()
     .from(purchases)
-    .where(and(eq(purchases.userId, userId), eq(purchases.courseId, courseId)))
-    .get();
-}
-
-export function getPurchasesByUser(userId: number) {
-  return db.select().from(purchases).where(eq(purchases.userId, userId)).all();
-}
-
-export function getPurchasesByCourse(courseId: number) {
-  return db
-    .select()
-    .from(purchases)
-    .where(eq(purchases.courseId, courseId))
-    .all();
+    .where(eq(purchases.courseId, courseId));
 }
 
 // ─── Team Purchase ───
 
-export function createTeamPurchase(
+export async function createTeamPurchase(
   userId: number,
   courseId: number,
   pricePaid: number,
   country: string | null,
   quantity: number
 ) {
-  const purchase = createPurchase(userId, courseId, pricePaid, country);
-  const team = getOrCreateTeamForUser(userId);
-  const coupons = generateCoupons(team.id, courseId, purchase.id, quantity);
+  const purchase = await createPurchase(userId, courseId, pricePaid, country);
+  const team = await getOrCreateTeamForUser(userId);
+  const coupons = await generateCoupons(team.id, courseId, purchase.id, quantity);
   return { purchase, team, coupons };
 }

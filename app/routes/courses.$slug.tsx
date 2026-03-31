@@ -53,18 +53,18 @@ export function meta({ data: loaderData }: Route.MetaArgs) {
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const slug = params.slug;
-  const course = getCourseBySlug(slug);
+  const course = await getCourseBySlug(slug);
 
   if (!course) {
     throw data("Course not found", { status: 404 });
   }
 
-  const courseWithDetails = getCourseWithDetails(course.id);
+  const courseWithDetails = await getCourseWithDetails(course.id);
   if (!courseWithDetails) {
     throw data("Course not found", { status: 404 });
   }
 
-  const lessonCount = getLessonCountForCourse(course.id);
+  const lessonCount = await getLessonCountForCourse(course.id);
   const currentUserId = await getCurrentUserId(request);
 
   let enrolled = false;
@@ -73,12 +73,12 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   let nextLessonId: number | null = null;
 
   if (currentUserId) {
-    enrolled = isUserEnrolled(currentUserId, course.id);
+    enrolled = await isUserEnrolled(currentUserId, course.id);
 
     if (enrolled) {
-      progress = calculateProgress(currentUserId, course.id, false, false);
+      progress = await calculateProgress(currentUserId, course.id, false, false);
 
-      const progressRecords = getLessonProgressForCourse(
+      const progressRecords = await getLessonProgressForCourse(
         currentUserId,
         course.id
       );
@@ -86,7 +86,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         lessonProgressMap[record.lessonId] = record.status;
       }
 
-      const nextLesson = getNextIncompleteLesson(currentUserId, course.id);
+      const nextLesson = await getNextIncompleteLesson(currentUserId, course.id);
       nextLessonId = nextLesson?.id ?? null;
     }
   }

@@ -51,7 +51,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const currentUser = getUserById(currentUserId);
+  const currentUser = await getUserById(currentUserId);
 
   if (!currentUser || currentUser.role !== UserRole.Admin) {
     throw data("Only admins can access this page.", {
@@ -59,7 +59,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const users = getAllUsers();
+  const users = await getAllUsers();
 
   return { users };
 }
@@ -71,7 +71,7 @@ export async function action({ request }: Route.ActionArgs) {
     throw data("You must be logged in.", { status: 401 });
   }
 
-  const currentUser = getUserById(currentUserId);
+  const currentUser = await getUserById(currentUserId);
   if (!currentUser || currentUser.role !== UserRole.Admin) {
     throw data("Only admins can manage users.", { status: 403 });
   }
@@ -87,14 +87,14 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (intent === "update-user") {
     const { userId, name, email } = parsed.data;
-    const user = getUserById(userId);
-    updateUser(userId, name, email, user?.bio ?? null);
+    const user = await getUserById(userId);
+    await updateUser(userId, name, email, user?.bio ?? null);
     return { success: true };
   }
 
   if (intent === "update-role") {
     const { userId, role } = parsed.data;
-    updateUserRole(userId, role);
+    await updateUserRole(userId, role);
     return { success: true };
   }
 

@@ -6,54 +6,56 @@ import { users, UserRole } from "~/db/schema";
 // Handles user CRUD operations and role management.
 // Uses positional parameters (project convention).
 
-export function getAllUsers() {
-  return db.select().from(users).all();
+export async function getAllUsers() {
+  return await db.select().from(users);
 }
 
-export function getUserById(id: number) {
-  return db.select().from(users).where(eq(users.id, id)).get();
+export async function getUserById(id: number) {
+  const [user] = await db.select().from(users).where(eq(users.id, id));
+  return user;
 }
 
-export function getUserByEmail(email: string) {
-  return db.select().from(users).where(eq(users.email, email)).get();
+export async function getUserByEmail(email: string) {
+  const [user] = await db.select().from(users).where(eq(users.email, email));
+  return user;
 }
 
-export function getUsersByRole(role: UserRole) {
-  return db.select().from(users).where(eq(users.role, role)).all();
+export async function getUsersByRole(role: UserRole) {
+  return await db.select().from(users).where(eq(users.role, role));
 }
 
-export function createUser(
+export async function createUser(
   name: string,
   email: string,
   role: UserRole,
   avatarUrl: string | null
 ) {
-  return db
+  const [user] = await db
     .insert(users)
     .values({ name, email, role, avatarUrl })
-    .returning()
-    .get();
+    .returning();
+  return user;
 }
 
-export function updateUser(
+export async function updateUser(
   id: number,
   name: string,
   email: string,
   bio: string | null
 ) {
-  return db
+  const [user] = await db
     .update(users)
     .set({ name, email, bio })
     .where(eq(users.id, id))
-    .returning()
-    .get();
+    .returning();
+  return user;
 }
 
-export function updateUserRole(id: number, role: UserRole) {
-  return db
+export async function updateUserRole(id: number, role: UserRole) {
+  const [user] = await db
     .update(users)
     .set({ role })
     .where(eq(users.id, id))
-    .returning()
-    .get();
+    .returning();
+  return user;
 }

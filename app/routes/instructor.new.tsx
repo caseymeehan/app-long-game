@@ -47,7 +47,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
 
   if (!user || user.role !== UserRole.Instructor) {
     throw data("Only instructors can create courses.", {
@@ -55,7 +55,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const categories = getAllCategories();
+  const categories = await getAllCategories();
 
   return { categories };
 }
@@ -67,7 +67,7 @@ export async function action({ request }: Route.ActionArgs) {
     throw data("You must be logged in to create a course.", { status: 401 });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
 
   if (!user || user.role !== UserRole.Instructor) {
     throw data("Only instructors can create courses.", { status: 403 });
@@ -82,9 +82,9 @@ export async function action({ request }: Route.ActionArgs) {
 
   const { title, description, categoryId, coverImageUrl } = parsed.data;
 
-  const slug = generateSlug(title);
+  const slug = await generateSlug(title);
 
-  const existingCourse = getCourseBySlug(slug);
+  const existingCourse = await getCourseBySlug(slug);
   if (existingCourse) {
     return data(
       { errors: { title: "A course with a similar title already exists." } as Record<string, string> },
@@ -92,7 +92,7 @@ export async function action({ request }: Route.ActionArgs) {
     );
   }
 
-  const course = createCourse(
+  const course = await createCourse(
     title,
     slug,
     description,

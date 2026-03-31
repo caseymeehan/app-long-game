@@ -6,81 +6,83 @@ import { modules, lessons } from "~/db/schema";
 // Handles module CRUD and reordering within courses.
 // Uses positional parameters (project convention).
 
-export function getModuleById(id: number) {
-  return db.select().from(modules).where(eq(modules.id, id)).get();
+export async function getModuleById(id: number) {
+  const [row] = await db.select().from(modules).where(eq(modules.id, id));
+  return row;
 }
 
-export function getModulesByCourse(courseId: number) {
-  return db
+export async function getModulesByCourse(courseId: number) {
+  return await db
     .select()
     .from(modules)
     .where(eq(modules.courseId, courseId))
-    .orderBy(modules.position)
-    .all();
+    .orderBy(modules.position);
 }
 
-export function getModuleWithLessons(id: number) {
-  const mod = getModuleById(id);
+export async function getModuleWithLessons(id: number) {
+  const mod = await getModuleById(id);
   if (!mod) return null;
 
-  const moduleLessons = db
+  const moduleLessons = await db
     .select()
     .from(lessons)
     .where(eq(lessons.moduleId, id))
-    .orderBy(lessons.position)
-    .all();
+    .orderBy(lessons.position);
 
   return { ...mod, lessons: moduleLessons };
 }
 
-export function createModule(
+export async function createModule(
   courseId: number,
   title: string,
   position: number | null
 ) {
-  const pos =
-    position ??
-    db
+  let pos: number;
+  if (position != null) {
+    pos = position;
+  } else {
+    const [maxResult] = await db
       .select({ max: sql<number>`coalesce(max(${modules.position}), 0)` })
       .from(modules)
-      .where(eq(modules.courseId, courseId))
-      .get()!.max + 1;
+      .where(eq(modules.courseId, courseId));
+    pos = maxResult!.max + 1;
+  }
 
-  return db
+  const [row] = await db
     .insert(modules)
     .values({ courseId, title, position: pos })
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function updateModuleTitle(id: number, title: string) {
-  return db
+export async function updateModuleTitle(id: number, title: string) {
+  const [row] = await db
     .update(modules)
     .set({ title })
     .where(eq(modules.id, id))
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function deleteModule(id: number) {
+export async function deleteModule(id: number) {
   // Delete all lessons in this module first
-  db.delete(lessons).where(eq(lessons.moduleId, id)).run();
-  return db.delete(modules).where(eq(modules.id, id)).returning().get();
+  await db.delete(lessons).where(eq(lessons.moduleId, id));
+  const [row] = await db.delete(modules).where(eq(modules.id, id)).returning();
+  return row;
 }
 
-export function getModuleCount(courseId: number) {
-  const result = db
+export async function getModuleCount(courseId: number) {
+  const [result] = await db
     .select({ count: sql<number>`count(*)` })
     .from(modules)
-    .where(eq(modules.courseId, courseId))
-    .get();
+    .where(eq(modules.courseId, courseId));
   return result?.count ?? 0;
 }
 
 // ─── Reordering ───
 
-export function moveModuleToPosition(moduleId: number, newPosition: number) {
-  const mod = getModuleById(moduleId);
+export async function moveModuleToPosition(moduleId: number, newPosition: number) {
+  const mod = await getModuleById(moduleId);
   if (!mod) return null;
 
   const oldPosition = mod.position;
@@ -88,7 +90,7 @@ export function moveModuleToPosition(moduleId: number, newPosition: number) {
 
   if (newPosition > oldPosition) {
     // Moving down: shift items between old+1 and new up by 1
-    db.update(modules)
+    await db.update(modules)
       .set({ position: sql`${modules.position} - 1` })
       .where(
         and(
@@ -96,11 +98,10 @@ export function moveModuleToPosition(moduleId: number, newPosition: number) {
           gt(modules.position, oldPosition),
           lte(modules.position, newPosition)
         )
-      )
-      .run();
+      );
   } else {
     // Moving up: shift items between new and old-1 down by 1
-    db.update(modules)
+    await db.update(modules)
       .set({ position: sql`${modules.position} + 1` })
       .where(
         and(
@@ -108,32 +109,29 @@ export function moveModuleToPosition(moduleId: number, newPosition: number) {
           gte(modules.position, newPosition),
           lt(modules.position, oldPosition)
         )
-      )
-      .run();
+      );
   }
 
-  return db
+  const [row] = await db
     .update(modules)
     .set({ position: newPosition })
     .where(eq(modules.id, moduleId))
-    .returning()
-    .get();
+    .returning();
+  return row;
 }
 
-export function swapModulePositions(moduleIdA: number, moduleIdB: number) {
-  const modA = getModuleById(moduleIdA);
-  const modB = getModuleById(moduleIdB);
+export async function swapModulePositions(moduleIdA: number, moduleIdB: number) {
+  const modA = await getModuleById(moduleIdA);
+  const modB = await getModuleById(moduleIdB);
   if (!modA || !modB) return null;
 
-  db.update(modules)
+  await db.update(modules)
     .set({ position: modB.position })
-    .where(eq(modules.id, moduleIdA))
-    .run();
+    .where(eq(modules.id, moduleIdA));
 
-  db.update(modules)
+  await db.update(modules)
     .set({ position: modA.position })
-    .where(eq(modules.id, moduleIdB))
-    .run();
+    .where(eq(modules.id, moduleIdB));
 
   return {
     a: { ...modA, position: modB.position },
@@ -141,12 +139,11 @@ export function swapModulePositions(moduleIdA: number, moduleIdB: number) {
   };
 }
 
-export function reorderModules(courseId: number, moduleIds: number[]) {
+export async function reorderModules(courseId: number, moduleIds: number[]) {
   for (let i = 0; i < moduleIds.length; i++) {
-    db.update(modules)
+    await db.update(modules)
       .set({ position: i + 1 })
-      .where(and(eq(modules.id, moduleIds[i]), eq(modules.courseId, courseId)))
-      .run();
+      .where(and(eq(modules.id, moduleIds[i]), eq(modules.courseId, courseId)));
   }
-  return getModulesByCourse(courseId);
+  return await getModulesByCourse(courseId);
 }

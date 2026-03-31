@@ -50,7 +50,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const currentUser = getUserById(currentUserId);
+  const currentUser = await getUserById(currentUserId);
 
   if (!currentUser || currentUser.role !== UserRole.Admin) {
     throw data("Only admins can access this page.", {
@@ -58,13 +58,13 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  const allCourses = getAllCourses();
+  const allCourses = await getAllCourses();
 
-  const coursesWithDetails = allCourses.map((course) => ({
+  const coursesWithDetails = await Promise.all(allCourses.map(async (course) => ({
     ...course,
-    lessonCount: getLessonCountForCourse(course.id),
-    enrollmentCount: getEnrollmentCountForCourse(course.id),
-  }));
+    lessonCount: await getLessonCountForCourse(course.id),
+    enrollmentCount: await getEnrollmentCountForCourse(course.id),
+  })));
 
   return { courses: coursesWithDetails };
 }
@@ -76,7 +76,7 @@ export async function action({ request }: Route.ActionArgs) {
     throw data("You must be logged in.", { status: 401 });
   }
 
-  const currentUser = getUserById(currentUserId);
+  const currentUser = await getUserById(currentUserId);
   if (!currentUser || currentUser.role !== UserRole.Admin) {
     throw data("Only admins can manage courses.", { status: 403 });
   }
@@ -91,7 +91,7 @@ export async function action({ request }: Route.ActionArgs) {
   const { intent } = parsed.data;
 
   if (intent === "update-status") {
-    updateCourseStatus(parsed.data.courseId, parsed.data.status);
+    await updateCourseStatus(parsed.data.courseId, parsed.data.status);
     return { success: true };
   }
 

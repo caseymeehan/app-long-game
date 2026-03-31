@@ -32,7 +32,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     });
   }
 
-  const user = getUserById(currentUserId);
+  const user = await getUserById(currentUserId);
 
   if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
     throw data("Only instructors and admins can access this page.", {
@@ -45,7 +45,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Invalid course ID.", { status: 400 });
   }
 
-  const course = getCourseById(courseId);
+  const course = await getCourseById(courseId);
 
   if (!course) {
     throw data("Course not found.", { status: 404 });
@@ -58,30 +58,28 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   }
 
   // Get all enrolled students
-  const enrolledStudents = getCourseEnrolledStudents(courseId);
+  const enrolledStudents = await getCourseEnrolledStudents(courseId);
 
   // Get all lessons with quizzes for this course
-  const courseModules = db
+  const courseModules = await db
     .select({ id: modules.id })
     .from(modules)
-    .where(eq(modules.courseId, courseId))
-    .all();
+    .where(eq(modules.courseId, courseId));
 
   // Get all lessons across all modules
   const allCourseLessons: { id: number; title: string }[] = [];
   for (const mod of courseModules) {
-    const modLessons = db
+    const modLessons = await db
       .select({ id: lessons.id, title: lessons.title })
       .from(lessons)
-      .where(eq(lessons.moduleId, mod.id))
-      .all();
+      .where(eq(lessons.moduleId, mod.id));
     allCourseLessons.push(...modLessons);
   }
 
   // Find which lessons have quizzes
   const lessonQuizzes: { lessonId: number; lessonTitle: string; quizId: number; quizTitle: string }[] = [];
   for (const lesson of allCourseLessons) {
-    const quiz = getQuizByLessonId(lesson.id);
+    const quiz = await getQuizByLessonId(lesson.id);
     if (quiz) {
       lessonQuizzes.push({
         lessonId: lesson.id,
@@ -93,13 +91,13 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   }
 
   // Build student data with progress and quiz scores
-  const students = enrolledStudents.map((enrollment) => {
-    const studentUser = getUserById(enrollment.userId);
-    const progress = calculateProgress(enrollment.userId, courseId, false, false);
+  const students = await Promise.all(enrolledStudents.map(async (enrollment) => {
+    const studentUser = await getUserById(enrollment.userId);
+    const progress = await calculateProgress(enrollment.userId, courseId, false, false);
 
     // Get best quiz attempt for each quiz in this course
-    const quizScores = lessonQuizzes.map((lq) => {
-      const bestAttempt = getBestAttempt(enrollment.userId, lq.quizId);
+    const quizScores = await Promise.all(lessonQuizzes.map(async (lq) => {
+      const bestAttempt = await getBestAttempt(enrollment.userId, lq.quizId);
       return {
         quizId: lq.quizId,
         quizTitle: lq.quizTitle,
@@ -107,7 +105,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         bestScore: bestAttempt?.score ?? null,
         passed: bestAttempt?.passed ?? null,
       };
-    });
+    }));
 
     return {
       userId: enrollment.userId,
@@ -118,7 +116,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
       progress,
       quizScores,
     };
-  });
+  }));
 
   return { course, students, quizCount: lessonQuizzes.length };
 }
