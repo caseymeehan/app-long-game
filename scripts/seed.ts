@@ -50,7 +50,7 @@ async function seed() {
     .insert(schema.users)
     .values({
       name: "Alex Rivera",
-      email: "alex.rivera@ralph.dev",
+      email: "admin@long-game.ai",
       role: UserRole.Admin,
       avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=alex",
       createdAt: daysAgo(120),
@@ -61,7 +61,7 @@ async function seed() {
     .insert(schema.users)
     .values({
       name: "Sarah Chen",
-      email: "sarah.chen@ralph.dev",
+      email: "sarah@long-game.ai",
       role: UserRole.Instructor,
       avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=sarah",
       bio: "Senior TypeScript engineer with 10 years of experience building large-scale web applications. Previously at Stripe and Vercel. Passionate about type safety and developer tooling.",
@@ -73,7 +73,7 @@ async function seed() {
     .insert(schema.users)
     .values({
       name: "Marcus Johnson",
-      email: "marcus.johnson@ralph.dev",
+      email: "marcus@long-game.ai",
       role: UserRole.Instructor,
       avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=marcus",
       bio: "Full-stack developer and API architect specializing in Node.js and cloud infrastructure. Has built and scaled APIs serving millions of requests daily. Conference speaker and open-source contributor.",
@@ -86,35 +86,35 @@ async function seed() {
     .values([
       {
         name: "Emma Wilson",
-        email: "emma.wilson@student.dev",
+        email: "student1@example.com",
         role: UserRole.Student,
         avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=emma",
         createdAt: daysAgo(60),
       },
       {
         name: "James Park",
-        email: "james.park@student.dev",
+        email: "student2@example.com",
         role: UserRole.Student,
         avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=james",
         createdAt: daysAgo(55),
       },
       {
         name: "Olivia Martinez",
-        email: "olivia.martinez@student.dev",
+        email: "student3@example.com",
         role: UserRole.Student,
         avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=olivia",
         createdAt: daysAgo(45),
       },
       {
         name: "Liam Thompson",
-        email: "liam.thompson@student.dev",
+        email: "student4@example.com",
         role: UserRole.Student,
         avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=liam",
         createdAt: daysAgo(30),
       },
       {
         name: "Sophia Davis",
-        email: "sophia.davis@student.dev",
+        email: "student5@example.com",
         role: UserRole.Student,
         avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=sophia",
         createdAt: daysAgo(20),
@@ -125,10 +125,10 @@ async function seed() {
   const [bossy] = await db
     .insert(schema.users)
     .values({
-      name: "Bossy McBossface",
-      email: "bossy.mcbossface@student.dev",
+      name: "Taylor Reed",
+      email: "teamlead@example.com",
       role: UserRole.Student,
-      avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=bossy",
+      avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=taylor",
       createdAt: daysAgo(40),
     })
     .returning();
@@ -1592,7 +1592,7 @@ You've completed the Building REST APIs course. You now have the skills to build
   console.log("Created 5 individual purchases.");
 
   // ─── Teams, Team Members, and Coupons ───
-  // Bossy McBossface bought 5 team seats for course 2; Olivia and Liam redeemed coupons
+  // Taylor Reed bought 5 team seats for course 2; Olivia and Liam redeemed coupons
 
   const [team1] = await db
     .insert(schema.teams)
@@ -1607,7 +1607,7 @@ You've completed the Building REST APIs course. You now have the skills to build
       createdAt: daysAgo(30),
     });
 
-  // Team purchase by Bossy McBossface for course 2 (5 seats)
+  // Team purchase by Taylor Reed for course 2 (5 seats)
   const [teamPurchase] = await db
     .insert(schema.purchases)
     .values({
@@ -1659,7 +1659,7 @@ You've completed the Building REST APIs course. You now have the skills to build
     .where(eq(schema.coupons.id, seededCoupons[1].id));
 
   console.log(
-    `Created 1 team with Bossy McBossface as admin, 1 team purchase, and ${seededCoupons.length} coupons (2 redeemed, 3 available).`
+    `Created 1 team with Taylor Reed as admin, 1 team purchase, and ${seededCoupons.length} coupons (2 redeemed, 3 available).`
   );
 
   console.log("\n✓ Seed complete!");
