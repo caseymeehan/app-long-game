@@ -9,7 +9,7 @@ import { getUserById } from "~/services/userService";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Users, BookOpen, Copy, Check, AlertTriangle } from "lucide-react";
-import { data, isRouteErrorResponse } from "react-router";
+import { data, isRouteErrorResponse, redirect } from "react-router";
 
 interface CourseStats {
   courseId: number;
@@ -30,7 +30,7 @@ interface CouponRow {
 
 export function meta() {
   return [
-    { title: "Team — Cadence" },
+    { title: "Team — Long-Game" },
     { name: "description", content: "Manage your team's course seats" },
   ];
 }
@@ -39,7 +39,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
 
   if (!currentUserId) {
-    throw data("Select a user from the DevUI panel.", { status: 401 });
+    throw redirect("/login");
   }
 
   const team = await getTeamForAdmin(currentUserId);
@@ -293,7 +293,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       message =
         typeof error.data === "string"
           ? error.data
-          : "Please select a user from the DevUI panel.";
+          : "Please log in to continue.";
     } else if (error.status === 403) {
       title = "No team found";
       message =

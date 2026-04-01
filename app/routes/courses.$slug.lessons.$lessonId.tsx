@@ -68,7 +68,7 @@ const markCompleteSchema = z.object({
 export function meta({ data: loaderData }: Route.MetaArgs) {
   const title = loaderData?.lesson?.title ?? "Lesson";
   const courseTitle = loaderData?.course?.title ?? "Course";
-  return [{ title: `${title} — ${courseTitle} — Cadence` }];
+  return [{ title: `${title} — ${courseTitle} — Long-Game` }];
 }
 
 type FlatLesson = {
@@ -334,7 +334,7 @@ export async function action({ params, request }: Route.ActionArgs) {
   throw data("Invalid action", { status: 400 });
 }
 
-const AUTOPLAY_KEY = "cadence-autoplay";
+const AUTOPLAY_KEY = "long-game-autoplay";
 
 function useAutoplay() {
   const [enabled, setEnabled] = useState(false);
@@ -1028,7 +1028,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       message =
         typeof error.data === "string"
           ? error.data
-          : "Please select a user from the DevUI panel.";
+          : "Please log in to continue.";
     } else {
       title = `Error ${error.status}`;
       message = typeof error.data === "string" ? error.data : error.statusText;

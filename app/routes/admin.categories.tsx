@@ -18,7 +18,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
 import { AlertTriangle, BookOpen, Pencil, Plus, Tag, Trash2 } from "lucide-react";
-import { data, isRouteErrorResponse, Link } from "react-router";
+import { data, isRouteErrorResponse, Link, redirect } from "react-router";
 
 const adminCategoryActionSchema = z.discriminatedUnion("intent", [
   z.object({
@@ -38,7 +38,7 @@ const adminCategoryActionSchema = z.discriminatedUnion("intent", [
 
 export function meta() {
   return [
-    { title: "Manage Categories — Cadence" },
+    { title: "Manage Categories — Long-Game" },
     { name: "description", content: "Manage course categories" },
   ];
 }
@@ -47,9 +47,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
 
   if (!currentUserId) {
-    throw data("Select a user from the DevUI panel to manage categories.", {
-      status: 401,
-    });
+    throw redirect("/login");
   }
 
   const currentUser = await getUserById(currentUserId);
@@ -513,7 +511,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error)) {
     if (error.status === 401) {
       title = "Sign in required";
-      message = typeof error.data === "string" ? error.data : "Please select a user from the DevUI panel.";
+      message = typeof error.data === "string" ? error.data : "Please log in to continue.";
     } else if (error.status === 403) {
       title = "Access denied";
       message = typeof error.data === "string" ? error.data : "Only admins can access this page.";

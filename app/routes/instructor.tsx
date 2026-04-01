@@ -9,12 +9,12 @@ import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { AlertTriangle, BookOpen, GraduationCap, Plus, Users } from "lucide-react";
 import { CourseImage } from "~/components/course-image";
-import { data, isRouteErrorResponse } from "react-router";
+import { data, isRouteErrorResponse, redirect } from "react-router";
 import { CourseStatus, UserRole } from "~/db/schema";
 
 export function meta() {
   return [
-    { title: "My Courses — Cadence" },
+    { title: "My Courses — Long-Game" },
     { name: "description", content: "Manage your courses" },
   ];
 }
@@ -23,9 +23,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
 
   if (!currentUserId) {
-    throw data("Select a user from the DevUI panel to view your courses.", {
-      status: 401,
-    });
+    throw redirect("/login");
   }
 
   const user = await getUserById(currentUserId);
@@ -229,7 +227,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error)) {
     if (error.status === 401) {
       title = "Sign in required";
-      message = typeof error.data === "string" ? error.data : "Please select a user from the DevUI panel.";
+      message = typeof error.data === "string" ? error.data : "Please log in to continue.";
     } else if (error.status === 403) {
       title = "Access denied";
       message = typeof error.data === "string" ? error.data : "You don't have permission to access this page.";

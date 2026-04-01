@@ -13,7 +13,7 @@ import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { UserRole } from "~/db/schema";
 import { AlertTriangle } from "lucide-react";
-import { data, isRouteErrorResponse, Link } from "react-router";
+import { data, isRouteErrorResponse, Link, redirect } from "react-router";
 
 const settingsSchema = z.object({
   name: z.string().trim().min(1, "Name cannot be empty."),
@@ -22,7 +22,7 @@ const settingsSchema = z.object({
 
 export function meta() {
   return [
-    { title: "Settings — Cadence" },
+    { title: "Settings — Long-Game" },
     { name: "description", content: "Edit your profile details" },
   ];
 }
@@ -31,9 +31,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
 
   if (!currentUserId) {
-    throw data("Select a user from the DevUI panel to edit your details.", {
-      status: 401,
-    });
+    throw redirect("/login");
   }
 
   const currentUser = await getUserById(currentUserId);
@@ -179,7 +177,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       message =
         typeof error.data === "string"
           ? error.data
-          : "Please select a user from the DevUI panel.";
+          : "Please log in to continue.";
     } else if (error.status === 404) {
       title = "User not found";
       message =

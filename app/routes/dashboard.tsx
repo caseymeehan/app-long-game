@@ -8,11 +8,11 @@ import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { AlertTriangle, BookOpen, CheckCircle2, GraduationCap, PlayCircle } from "lucide-react";
 import { CourseImage } from "~/components/course-image";
-import { data, isRouteErrorResponse } from "react-router";
+import { data, isRouteErrorResponse, redirect } from "react-router";
 
 export function meta() {
   return [
-    { title: "Dashboard — Cadence" },
+    { title: "Dashboard — Long-Game" },
     { name: "description", content: "Your enrolled courses and progress" },
   ];
 }
@@ -21,9 +21,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
 
   if (!currentUserId) {
-    throw data("Select a user from the DevUI panel to view your dashboard.", {
-      status: 401,
-    });
+    throw redirect("/login");
   }
 
   const enrolledCourses = await getUserEnrolledCourses(currentUserId);
@@ -272,7 +270,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error)) {
     if (error.status === 401) {
       title = "Sign in required";
-      message = typeof error.data === "string" ? error.data : "Please select a user from the DevUI panel.";
+      message = typeof error.data === "string" ? error.data : "Please log in to continue.";
     } else {
       title = `Error ${error.status}`;
       message = typeof error.data === "string" ? error.data : error.statusText;

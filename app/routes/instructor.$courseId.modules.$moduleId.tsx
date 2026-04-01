@@ -19,7 +19,7 @@ import {
   FileText,
   Video,
 } from "lucide-react";
-import { data, isRouteErrorResponse } from "react-router";
+import { data, isRouteErrorResponse, redirect } from "react-router";
 import { formatDuration } from "~/lib/utils";
 import { z } from "zod";
 
@@ -31,16 +31,14 @@ const paramsSchema = z.object({
 export function meta({ data: loaderData }: Route.MetaArgs) {
   const moduleTitle = loaderData?.module?.title ?? "Module";
   const courseTitle = loaderData?.course?.title ?? "Course";
-  return [{ title: `Preview: ${moduleTitle} — ${courseTitle} — Cadence` }];
+  return [{ title: `Preview: ${moduleTitle} — ${courseTitle} — Long-Game` }];
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
 
   if (!currentUserId) {
-    throw data("Select a user from the DevUI panel to manage courses.", {
-      status: 401,
-    });
+    throw redirect("/login");
   }
 
   const user = await getUserById(currentUserId);

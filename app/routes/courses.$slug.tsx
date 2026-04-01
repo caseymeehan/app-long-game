@@ -46,7 +46,7 @@ import { calculatePppPrice, getCountryTierInfo } from "~/lib/ppp";
 export function meta({ data: loaderData }: Route.MetaArgs) {
   const title = loaderData?.course?.title ?? "Course";
   return [
-    { title: `${title} — Cadence` },
+    { title: `${title} — Long-Game` },
     { name: "description", content: loaderData?.course?.description ?? "" },
   ];
 }
@@ -602,7 +602,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       message =
         typeof error.data === "string"
           ? error.data
-          : "Please select a user from the DevUI panel.";
+          : "Please log in to continue.";
     } else {
       title = `Error ${error.status}`;
       message = typeof error.data === "string" ? error.data : error.statusText;

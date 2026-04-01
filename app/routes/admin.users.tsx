@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { AlertTriangle, Pencil, Shield, Users } from "lucide-react";
-import { data, isRouteErrorResponse, Link } from "react-router";
+import { data, isRouteErrorResponse, Link, redirect } from "react-router";
 
 const adminUserActionSchema = z.discriminatedUnion("intent", [
   z.object({
@@ -37,7 +37,7 @@ const adminUserActionSchema = z.discriminatedUnion("intent", [
 
 export function meta() {
   return [
-    { title: "Manage Users — Cadence" },
+    { title: "Manage Users — Long-Game" },
     { name: "description", content: "Manage platform users" },
   ];
 }
@@ -46,9 +46,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
 
   if (!currentUserId) {
-    throw data("Select a user from the DevUI panel to manage users.", {
-      status: 401,
-    });
+    throw redirect("/login");
   }
 
   const currentUser = await getUserById(currentUserId);
@@ -427,7 +425,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error)) {
     if (error.status === 401) {
       title = "Sign in required";
-      message = typeof error.data === "string" ? error.data : "Please select a user from the DevUI panel.";
+      message = typeof error.data === "string" ? error.data : "Please log in to continue.";
     } else if (error.status === 403) {
       title = "Access denied";
       message = typeof error.data === "string" ? error.data : "Only admins can access this page.";

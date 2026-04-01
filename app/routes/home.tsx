@@ -8,14 +8,12 @@ import { getAllCategories } from "~/services/categoryService";
 import { CourseStatus } from "~/db/schema";
 import { BookOpen, GraduationCap, Users, ArrowRight, User, Moon, Sun } from "lucide-react";
 import { CourseImage } from "~/components/course-image";
-import { DevUI } from "~/components/dev-ui";
-import { getAllUsers, getUserById } from "~/services/userService";
-import { getCurrentUserId, getDevCountry } from "~/lib/session";
-import { getCountryTierInfo, COUNTRIES } from "~/lib/ppp";
+import { getUserById } from "~/services/userService";
+import { getCurrentUserId } from "~/lib/session";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Cadence — Learn at your own pace" },
+    { title: "Long-Game — Learn at your own pace" },
     { name: "description", content: "A modern course platform for developers. Browse courses, track your progress, and learn at your own pace." },
   ];
 }
@@ -29,28 +27,21 @@ export async function loader({ request }: Route.LoaderArgs) {
     }))
   );
   const categories = await getAllCategories();
-  const users = await getAllUsers();
   const currentUserId = await getCurrentUserId(request);
   const currentUser = currentUserId ? await getUserById(currentUserId) : null;
-  const devCountry = await getDevCountry(request);
-  const countryTierInfo = getCountryTierInfo(devCountry);
 
   return {
     featuredCourses: featured,
     totalCourses: courses.length,
     totalCategories: categories.length,
-    users: users.map((u) => ({ id: u.id, name: u.name, role: u.role })),
     currentUser: currentUser
       ? { id: currentUser.id, name: currentUser.name, role: currentUser.role }
       : null,
-    devCountry,
-    countryTierInfo,
-    countries: COUNTRIES,
   };
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { featuredCourses, totalCourses, totalCategories, users, currentUser, devCountry, countryTierInfo, countries } = loaderData;
+  const { featuredCourses, totalCourses, totalCategories, currentUser } = loaderData;
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -62,7 +53,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setIsDark(next);
     document.documentElement.classList.toggle("dark", next);
     try {
-      localStorage.setItem("cadence-theme", next ? "dark" : "light");
+      localStorage.setItem("long-game-theme", next ? "dark" : "light");
     } catch {}
   }
 
@@ -71,7 +62,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <header className="border-b border-border">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link to="/" className="text-xl font-bold tracking-tight">
-            Cadence
+            Long-Game
           </Link>
           <nav className="flex items-center gap-6">
             <Link
@@ -208,17 +199,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       <footer className="border-t border-border py-8">
         <div className="mx-auto max-w-6xl px-6 text-center text-sm text-muted-foreground">
-          Cadence
+          Long-Game
         </div>
       </footer>
 
-      <DevUI
-        users={users}
-        currentUser={currentUser}
-        devCountry={devCountry}
-        countryTierInfo={countryTierInfo}
-        countries={countries}
-      />
     </div>
   );
 }

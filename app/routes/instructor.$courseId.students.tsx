@@ -10,7 +10,7 @@ import { UserRole } from "~/db/schema";
 import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { AlertTriangle, ArrowLeft, Users, Award } from "lucide-react";
-import { data, isRouteErrorResponse } from "react-router";
+import { data, isRouteErrorResponse, redirect } from "react-router";
 import { db } from "~/db";
 import { modules, lessons } from "~/db/schema";
 import { eq } from "drizzle-orm";
@@ -18,7 +18,7 @@ import { eq } from "drizzle-orm";
 export function meta({ data: loaderData }: Route.MetaArgs) {
   const title = loaderData?.course?.title ?? "Student Roster";
   return [
-    { title: `Students: ${title} — Cadence` },
+    { title: `Students: ${title} — Long-Game` },
     { name: "description", content: `Enrolled students for ${title}` },
   ];
 }
@@ -27,9 +27,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
 
   if (!currentUserId) {
-    throw data("Select a user from the DevUI panel to view student roster.", {
-      status: 401,
-    });
+    throw redirect("/login");
   }
 
   const user = await getUserById(currentUserId);
@@ -330,7 +328,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       message = "The course you're looking for doesn't exist or may have been removed.";
     } else if (error.status === 401) {
       title = "Sign in required";
-      message = typeof error.data === "string" ? error.data : "Please select a user from the DevUI panel.";
+      message = typeof error.data === "string" ? error.data : "Please log in to continue.";
     } else if (error.status === 403) {
       title = "Access denied";
       message = typeof error.data === "string" ? error.data : "You don't have permission to view this roster.";

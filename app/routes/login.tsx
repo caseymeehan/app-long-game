@@ -35,8 +35,8 @@ const loginSchema = z.object({
 
 export function meta() {
   return [
-    { title: "Log In — Cadence" },
-    { name: "description", content: "Log in to your Cadence account" },
+    { title: "Log In — Long-Game" },
+    { name: "description", content: "Log in to your Long-Game account" },
   ];
 }
 
@@ -167,7 +167,7 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link to="/" className="text-2xl font-bold tracking-tight">
-            Cadence
+            Long-Game
           </Link>
           <h1 className="mt-4 text-xl font-semibold">Welcome back</h1>
           <p className="mt-1 text-sm text-muted-foreground">

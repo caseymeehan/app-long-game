@@ -1,13 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock the session module
-const mockSession = new Map<string, string>();
-vi.mock("~/lib/session", () => ({
-  getSession: vi.fn(async () => ({
-    get: (key: string) => mockSession.get(key),
-  })),
-}));
-
 // Mock global fetch for ip-api.com
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -20,26 +12,17 @@ function makeRequest(headers: Record<string, string> = {}): Request {
 
 describe("resolveCountry", () => {
   beforeEach(() => {
-    mockSession.clear();
     mockFetch.mockReset();
   });
 
   // ─── Priority Ordering ───
 
-  it("uses dev session override first", async () => {
-    mockSession.set("devCountry", "IN");
-    const result = await resolveCountry(
-      makeRequest({ "CF-IPCountry": "US", "X-Forwarded-For": "1.2.3.4" }),
-    );
-    expect(result).toBe("IN");
-  });
-
-  it("falls back to CF-IPCountry when no dev override", async () => {
+  it("uses CF-IPCountry header first", async () => {
     const result = await resolveCountry(makeRequest({ "CF-IPCountry": "BR" }));
     expect(result).toBe("BR");
   });
 
-  it("falls back to ip-api.com when no dev override and no CF header", async () => {
+  it("falls back to ip-api.com when no CF header", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ countryCode: "NG" }),
@@ -54,20 +37,6 @@ describe("resolveCountry", () => {
   });
 
   it("returns null when all methods fail", async () => {
-    const result = await resolveCountry(makeRequest());
-    expect(result).toBeNull();
-  });
-
-  // ─── Dev Override Behavior ───
-
-  it("normalizes dev country to uppercase", async () => {
-    mockSession.set("devCountry", "pl");
-    const result = await resolveCountry(makeRequest());
-    expect(result).toBe("PL");
-  });
-
-  it("ignores dev country if not exactly 2 characters", async () => {
-    mockSession.set("devCountry", "USA");
     const result = await resolveCountry(makeRequest());
     expect(result).toBeNull();
   });

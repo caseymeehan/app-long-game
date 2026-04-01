@@ -70,7 +70,7 @@ import {
   Globe,
   FileText,
 } from "lucide-react";
-import { data, isRouteErrorResponse } from "react-router";
+import { data, isRouteErrorResponse, redirect } from "react-router";
 import { z } from "zod";
 import { parseFormData, parseParams } from "~/lib/validation";
 
@@ -99,7 +99,7 @@ const courseEditorActionSchema = z.discriminatedUnion("intent", [
 export function meta({ data: loaderData }: Route.MetaArgs) {
   const title = loaderData?.course?.title ?? "Edit Course";
   return [
-    { title: `Edit: ${title} — Cadence` },
+    { title: `Edit: ${title} — Long-Game` },
     { name: "description", content: `Edit course: ${title}` },
   ];
 }
@@ -108,9 +108,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
 
   if (!currentUserId) {
-    throw data("Select a user from the DevUI panel to manage courses.", {
-      status: 401,
-    });
+    throw redirect("/login");
   }
 
   const user = await getUserById(currentUserId);
@@ -1667,7 +1665,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       message = "The course you're looking for doesn't exist or may have been removed.";
     } else if (error.status === 401) {
       title = "Sign in required";
-      message = typeof error.data === "string" ? error.data : "Please select a user from the DevUI panel.";
+      message = typeof error.data === "string" ? error.data : "Please log in to continue.";
     } else if (error.status === 403) {
       title = "Access denied";
       message = typeof error.data === "string" ? error.data : "You don't have permission to edit this course.";
