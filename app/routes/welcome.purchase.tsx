@@ -66,14 +66,6 @@ export default function WelcomePurchase({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex min-h-screen bg-background">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center justify-center px-6 py-16">
-        {/* Brand */}
-        <Link
-          to="/"
-          className="mb-12 text-2xl font-bold tracking-tight text-foreground"
-        >
-          Long-Game
-        </Link>
-
         {/* Main content */}
         <div className="w-full rounded-xl border bg-card p-10 text-center shadow-sm">
           {/* Success icon */}
