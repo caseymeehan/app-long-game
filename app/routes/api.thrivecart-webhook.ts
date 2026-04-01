@@ -84,44 +84,65 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
   const supabaseAdmin = getSupabaseAdmin();
   const name = `${firstName} ${lastName}`.trim() || email.split("@")[0];
 
-  // 1. Find or create Supabase auth user
-  let supabaseAuthId: string;
-
-  const { data: createData, error: createError } =
-    await supabaseAdmin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-    });
-
-  if (createError) {
-    if (createError.message?.includes("already been registered")) {
-      // User exists in Supabase auth — find them
-      const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
-      const existingAuthUser = listData?.users?.find(
-        (u) => u.email?.toLowerCase() === email
-      );
-      if (!existingAuthUser) {
-        console.error(`[thrivecart-webhook] Could not find existing auth user for ${email}`);
-        return new Response("Failed to find auth user", { status: 500 });
-      }
-      supabaseAuthId = existingAuthUser.id;
-    } else {
-      console.error(`[thrivecart-webhook] Failed to create auth user: ${createError.message}`);
-      return new Response("Failed to create auth user", { status: 500 });
-    }
-  } else {
-    supabaseAuthId = createData.user.id;
-  }
-
-  // 2. Find or create app user
+  // 1. Check if app user already exists (avoids unnecessary Supabase calls)
   let appUser = await getUserByEmail(email);
 
+  // 2. Find or create Supabase auth user
+  let supabaseAuthId: string;
+
+  if (appUser?.supabaseAuthId) {
+    // User already fully set up — just use their existing auth ID
+    supabaseAuthId = appUser.supabaseAuthId;
+  } else {
+    // Try to create a new Supabase auth user
+    const { data: createData, error: createError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+      });
+
+    if (createError) {
+      if (createError.message?.includes("already") || createError.status === 422) {
+        // User exists in Supabase auth — find them via paginated list
+        let found = false;
+        let page = 1;
+        while (!found) {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({
+            page,
+            perPage: 100,
+          });
+          const match = listData?.users?.find(
+            (u) => u.email?.toLowerCase() === email
+          );
+          if (match) {
+            supabaseAuthId = match.id;
+            found = true;
+          } else if (!listData?.users?.length || listData.users.length < 100) {
+            break;
+          } else {
+            page++;
+          }
+        }
+        if (!found) {
+          console.error(`[thrivecart-webhook] Could not find existing auth user for ${email}`);
+          return new Response("Failed to find auth user", { status: 500 });
+        }
+      } else {
+        console.error(`[thrivecart-webhook] Failed to create auth user: ${createError.message}`);
+        return new Response("Failed to create auth user", { status: 500 });
+      }
+    } else {
+      supabaseAuthId = createData.user.id;
+    }
+  }
+
+  // 3. Find or create app user
   if (!appUser) {
-    appUser = await createUserWithAuth(name, email, UserRole.Student, supabaseAuthId, true);
+    appUser = await createUserWithAuth(name, email, UserRole.Student, supabaseAuthId!, true);
     console.log(`[thrivecart-webhook] Created app user ${appUser.id} for ${email}`);
   } else if (!appUser.supabaseAuthId) {
     // Link Supabase auth to existing app user
-    appUser = await linkSupabaseAuth(appUser.id, supabaseAuthId);
+    appUser = await linkSupabaseAuth(appUser.id, supabaseAuthId!);
     console.log(`[thrivecart-webhook] Linked auth to existing user ${appUser.id}`);
   }
 
