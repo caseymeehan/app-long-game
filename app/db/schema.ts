@@ -201,6 +201,9 @@ export const purchases = pgTable("purchases", {
     .references(() => courses.id),
   pricePaid: integer("price_paid").notNull(),
   country: text("country"),
+  thrivecartOrderId: text("thrivecart_order_id"),
+  refundedAt: text("refunded_at"),
+  affiliateId: text("affiliate_id"),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),

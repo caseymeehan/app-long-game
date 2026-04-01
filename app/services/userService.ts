@@ -59,3 +59,25 @@ export async function updateUserRole(id: number, role: UserRole) {
     .returning();
   return user;
 }
+
+export async function createUserWithAuth(
+  name: string,
+  email: string,
+  role: UserRole,
+  supabaseAuthId: string
+) {
+  const [user] = await db
+    .insert(users)
+    .values({ name, email, role, supabaseAuthId })
+    .returning();
+  return user;
+}
+
+export async function linkSupabaseAuth(userId: number, supabaseAuthId: string) {
+  const [user] = await db
+    .update(users)
+    .set({ supabaseAuthId })
+    .where(eq(users.id, userId))
+    .returning();
+  return user;
+}
