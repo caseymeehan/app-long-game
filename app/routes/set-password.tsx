@@ -27,8 +27,8 @@ const setPasswordSchema = z
 
 export function meta() {
   return [
-    { title: "Set Your Password — Long-Game" },
-    { name: "description", content: "Create a password for your Long-Game account" },
+    { title: "Set Your Password — AI for the Long Game" },
+    { name: "description", content: "Create a password for your AI for the Long Game account" },
   ];
 }
 

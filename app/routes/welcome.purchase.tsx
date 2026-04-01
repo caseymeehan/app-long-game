@@ -5,8 +5,8 @@ import { getSupabaseAdmin } from "~/lib/supabase-admin.server";
 
 export function meta() {
   return [
-    { title: "You're In! — Long-Game" },
-    { name: "description", content: "Welcome to AI For The Long Game" },
+    { title: "You're In! — AI for the Long Game" },
+    { name: "description", content: "Welcome to AI for the Long Game" },
   ];
 }
 
@@ -97,7 +97,7 @@ export default function WelcomePurchase({ loaderData }: Route.ComponentProps) {
             You're in!
           </h1>
           <p className="mb-8 text-lg text-muted-foreground">
-            Welcome to <strong>AI For The Long Game</strong>. Your purchase is
+            Welcome to <strong>AI for the Long Game</strong>. Your purchase is
             confirmed.
           </p>
 
@@ -170,7 +170,7 @@ export default function WelcomePurchase({ loaderData }: Route.ComponentProps) {
 
         {/* Footer */}
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          AI For The Long Game &mdash; Use AI with confidence.
+          AI for the Long Game &mdash; Use AI with confidence.
         </p>
       </div>
     </div>
