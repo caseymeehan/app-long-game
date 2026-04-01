@@ -224,7 +224,7 @@ sender_name = "AI for the Long Game"
 
 # Email templates
 [auth.email.template.magic_link]
-subject = "Your login link for AI for the Long Game"
+subject = "Your Login Link"
 content_path = "./supabase/templates/magic_link.html"
 
 # [auth.email.template.invite]
