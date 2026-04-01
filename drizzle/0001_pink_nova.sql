@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "needs_password_setup" boolean DEFAULT false NOT NULL;

@@ -46,6 +46,7 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   bio: text("bio"),
   supabaseAuthId: text("supabase_auth_id").unique(),
+  needsPasswordSetup: boolean("needs_password_setup").notNull().default(false),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),

@@ -117,7 +117,7 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
   let appUser = await getUserByEmail(email);
 
   if (!appUser) {
-    appUser = await createUserWithAuth(name, email, UserRole.Student, supabaseAuthId);
+    appUser = await createUserWithAuth(name, email, UserRole.Student, supabaseAuthId, true);
     console.log(`[thrivecart-webhook] Created app user ${appUser.id} for ${email}`);
   } else if (!appUser.supabaseAuthId) {
     // Link Supabase auth to existing app user

@@ -38,6 +38,8 @@ export async function loader({ request }: Route.LoaderArgs) {
             role: UserRole.Student,
             supabaseAuthId: user.id,
           });
+        } else if (existing.needsPasswordSetup) {
+          throw redirect("/set-password", { headers: responseHeaders });
         }
       }
     }

@@ -2,8 +2,6 @@ import { Link } from "react-router";
 import { createHash } from "crypto";
 import type { Route } from "./+types/welcome.purchase";
 import { getSupabaseAdmin } from "~/lib/supabase-admin.server";
-import { Card, CardContent } from "~/components/ui/card";
-import { Button } from "~/components/ui/button";
 
 export function meta() {
   return [
@@ -66,45 +64,114 @@ export default function WelcomePurchase({ loaderData }: Route.ComponentProps) {
   const { email } = loaderData;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <Link to="/" className="text-2xl font-bold tracking-tight">
-            Long-Game
-          </Link>
-        </div>
+    <div className="flex min-h-screen bg-background">
+      <div className="mx-auto flex w-full max-w-2xl flex-col items-center justify-center px-6 py-16">
+        {/* Brand */}
+        <Link
+          to="/"
+          className="mb-12 text-2xl font-bold tracking-tight text-foreground"
+        >
+          Long-Game
+        </Link>
 
-        <Card>
-          <CardContent className="p-8 text-center">
-            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
-              <span className="text-3xl">&#10003;</span>
+        {/* Main content */}
+        <div className="w-full rounded-xl border bg-card p-10 text-center shadow-sm">
+          {/* Success icon */}
+          <div className="mx-auto mb-6 flex size-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+            <svg
+              className="size-7 text-emerald-600 dark:text-emerald-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4.5 12.75l6 6 9-13.5"
+              />
+            </svg>
+          </div>
+
+          <h1 className="mb-2 text-3xl font-bold tracking-tight">
+            You're in!
+          </h1>
+          <p className="mb-8 text-lg text-muted-foreground">
+            Welcome to <strong>AI For The Long Game</strong>. Your purchase is
+            confirmed.
+          </p>
+
+          {/* Next steps */}
+          <div className="mb-8 space-y-4 text-left">
+            <h2 className="text-center text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Here's what happens next
+            </h2>
+
+            <div className="flex gap-4 rounded-lg border bg-background p-4">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-sm font-bold text-background">
+                1
+              </div>
+              <div>
+                <p className="font-medium">Check your email</p>
+                <p className="text-sm text-muted-foreground">
+                  We sent a login link to
+                  {email ? (
+                    <strong className="text-foreground"> {email}</strong>
+                  ) : (
+                    " your email address"
+                  )}
+                  . It should arrive within a minute.
+                </p>
+              </div>
             </div>
 
-            <h1 className="mb-2 text-2xl font-bold">You're in!</h1>
+            <div className="flex gap-4 rounded-lg border bg-background p-4">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-sm font-bold text-background">
+                2
+              </div>
+              <div>
+                <p className="font-medium">Set your password</p>
+                <p className="text-sm text-muted-foreground">
+                  After clicking the link, you'll create a password so you can
+                  log in anytime.
+                </p>
+              </div>
+            </div>
 
-            <p className="mb-4 text-muted-foreground">
-              Your purchase is confirmed. We've sent a login link to
-              {email ? (
-                <>
-                  {" "}
-                  <strong>{email}</strong>
-                </>
-              ) : (
-                " your email"
-              )}
+            <div className="flex gap-4 rounded-lg border bg-background p-4">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-sm font-bold text-background">
+                3
+              </div>
+              <div>
+                <p className="font-medium">Start learning</p>
+                <p className="text-sm text-muted-foreground">
+                  You'll have immediate access to the full course. Use AI with
+                  confidence, no matter what changes next.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Help text */}
+          <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
+            <p>
+              Don't see the email? Check your spam folder. If it still doesn't
+              show up,{" "}
+              <Link
+                to="/login"
+                className="font-medium text-foreground underline underline-offset-4 hover:text-foreground/80"
+              >
+                request a new login link here
+              </Link>
               .
             </p>
+          </div>
+        </div>
 
-            <p className="mb-6 text-sm text-muted-foreground">
-              Click the link in your email to access the course. It may take a
-              minute to arrive — check your spam folder if you don't see it.
-            </p>
-
-            <Button asChild variant="outline" className="w-full">
-              <Link to="/login">Already have your password? Log in here</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Footer */}
+        <p className="mt-8 text-center text-xs text-muted-foreground">
+          AI For The Long Game &mdash; Use AI with confidence.
+        </p>
       </div>
     </div>
   );

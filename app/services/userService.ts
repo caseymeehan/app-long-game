@@ -64,11 +64,21 @@ export async function createUserWithAuth(
   name: string,
   email: string,
   role: UserRole,
-  supabaseAuthId: string
+  supabaseAuthId: string,
+  needsPasswordSetup = false
 ) {
   const [user] = await db
     .insert(users)
-    .values({ name, email, role, supabaseAuthId })
+    .values({ name, email, role, supabaseAuthId, needsPasswordSetup })
+    .returning();
+  return user;
+}
+
+export async function clearPasswordSetupFlag(userId: number) {
+  const [user] = await db
+    .update(users)
+    .set({ needsPasswordSetup: false })
+    .where(eq(users.id, userId))
     .returning();
   return user;
 }
