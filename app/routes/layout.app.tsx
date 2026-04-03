@@ -4,16 +4,12 @@ import { Sidebar } from "~/components/sidebar";
 import { Toaster } from "sonner";
 import { getUserById } from "~/services/userService";
 import { getCurrentUserId } from "~/lib/session";
-import {
-  getRecentlyProgressedCourses,
-  calculateProgress,
-  getCompletedLessonCount,
-  getTotalLessonCount,
-} from "~/services/progressService";
-import { isTeamAdmin } from "~/services/teamService";
+import { getLessonProgressForCourse } from "~/services/progressService";
 import { getDefaultCourse } from "~/lib/defaultCourse";
 import { isUserEnrolled } from "~/services/enrollmentService";
-import { UserRole } from "~/db/schema";
+import { getModulesByCourse } from "~/services/moduleService";
+import { getLessonsByModule } from "~/services/lessonService";
+import { UserRole, LessonProgressStatus } from "~/db/schema";
 
 const EXEMPT_PATHS = ["/no-access", "/settings"];
 
@@ -31,9 +27,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const isExempt = EXEMPT_PATHS.some((p) => url.pathname === p);
 
+  const defaultCourse = await getDefaultCourse();
   let isEnrolled = false;
+
   if (!isExempt) {
-    const defaultCourse = await getDefaultCourse();
     isEnrolled = await isUserEnrolled(currentUser.id, defaultCourse.id);
 
     if (!isEnrolled && currentUser.role !== UserRole.Admin) {
@@ -41,27 +38,30 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  const recentCourses = await Promise.all(
-    (await getRecentlyProgressedCourses(currentUser.id)).map(async (course) => {
-      const completedLessons = await getCompletedLessonCount(
-        currentUser.id,
-        course.courseId
-      );
-      const totalLessons = await getTotalLessonCount(course.courseId);
-      const progress = await calculateProgress(
-        currentUser.id,
-        course.courseId,
-        false,
-        false
-      );
+  // Fetch modules with lessons for the sidebar
+  const courseModules = await getModulesByCourse(defaultCourse.id);
+  const progressRecords = await getLessonProgressForCourse(
+    currentUser.id,
+    defaultCourse.id
+  );
+  const completedLessonIds = new Set(
+    progressRecords
+      .filter((p) => p.status === LessonProgressStatus.Completed)
+      .map((p) => p.lessonId)
+  );
+
+  const modulesWithLessons = await Promise.all(
+    courseModules.map(async (mod) => {
+      const modLessons = await getLessonsByModule(mod.id);
       return {
-        courseId: course.courseId,
-        title: course.courseTitle,
-        slug: course.courseSlug,
-        coverImageUrl: course.coverImageUrl,
-        completedLessons,
-        totalLessons,
-        progress,
+        id: mod.id,
+        title: mod.title,
+        position: mod.position,
+        lessons: modLessons.map((l) => ({
+          id: l.id,
+          title: l.title,
+          completed: completedLessonIds.has(l.id),
+        })),
       };
     })
   );
@@ -73,25 +73,23 @@ export async function loader({ request }: Route.LoaderArgs) {
       role: currentUser.role,
       avatarUrl: currentUser.avatarUrl ?? null,
     },
-    recentCourses,
-    isTeamAdmin: await isTeamAdmin(currentUser.id),
+    courseSlug: defaultCourse.slug,
+    courseTitle: defaultCourse.title,
+    modules: modulesWithLessons,
     isEnrolled,
   };
 }
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
-  const {
-    currentUser,
-    recentCourses,
-    isTeamAdmin: userIsTeamAdmin,
-  } = loaderData;
+  const { currentUser, courseSlug, courseTitle, modules } = loaderData;
 
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
         currentUser={currentUser}
-        recentCourses={recentCourses}
-        isTeamAdmin={userIsTeamAdmin}
+        courseSlug={courseSlug}
+        courseTitle={courseTitle}
+        modules={modules}
       />
       <main className="flex-1 overflow-y-auto">
         <Outlet />
