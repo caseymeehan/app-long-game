@@ -45,7 +45,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     const url = new URL(request.url);
     const redirectTo = url.searchParams.get("redirectTo");
     const destination =
-      redirectTo && redirectTo.startsWith("/") ? redirectTo : "/courses";
+      redirectTo && redirectTo.startsWith("/") ? redirectTo : "/";
     throw redirect(destination);
   }
   return {};
@@ -73,7 +73,7 @@ export async function action({ request }: Route.ActionArgs) {
   const url = new URL(request.url);
   const redirectTo = url.searchParams.get("redirectTo");
   const destination =
-    redirectTo && redirectTo.startsWith("/") ? redirectTo : "/courses";
+    redirectTo && redirectTo.startsWith("/") ? redirectTo : "/";
 
   if (intent === "forgot_password") {
     const { error } = await supabase.auth.signInWithOtp({

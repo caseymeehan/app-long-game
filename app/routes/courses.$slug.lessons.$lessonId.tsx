@@ -32,28 +32,21 @@ import { Card, CardContent } from "~/components/ui/card";
 import {
   AlertTriangle,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Circle,
   Clock,
   Github,
   HelpCircle,
-  MapPin,
   PlayCircle,
-  ShieldAlert,
   XCircle,
   Trophy,
   RotateCcw,
 } from "lucide-react";
-import { cn, formatDuration } from "~/lib/utils";
+import { formatDuration } from "~/lib/utils";
 import { renderMarkdown } from "~/lib/markdown.server";
 import { YouTubePlayer } from "~/components/youtube-player";
 import { data, isRouteErrorResponse } from "react-router";
 import { z } from "zod";
-import { resolveCountry } from "~/lib/country.server";
-import { checkPppAccess, COUNTRIES } from "~/lib/ppp";
-import { findPurchase } from "~/services/purchaseService";
 import { parseFormData, parseParams } from "~/lib/validation";
 
 const lessonParamsSchema = z.object({
@@ -172,25 +165,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     }
   }
 
-  // PPP Access Guard
-  let pppBlocked = false;
-  let pppBlockedCountry: string | null = null;
-  let pppPurchaseCountry: string | null = null;
-
-  if (enrolled && currentUserId) {
-    const purchase = await findPurchase(currentUserId, course.id);
-    const currentCountry = await resolveCountry(request);
-    const pppResult = checkPppAccess(
-      course.price,
-      course.pppEnabled,
-      purchase?.country ?? null,
-      currentCountry
-    );
-    pppBlocked = pppResult.blocked;
-    pppBlockedCountry = pppResult.blockedCountry;
-    pppPurchaseCountry = pppResult.purchaseCountry;
-  }
-
   // Render lesson content from Markdown to HTML server-side
   const contentHtml = lesson.content
     ? await renderMarkdown(lesson.content)
@@ -278,9 +252,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     lastWatchPosition,
     watchProgress,
     lessonProgressMap,
-    pppBlocked,
-    pppBlockedCountry,
-    pppPurchaseCountry,
   };
 }
 
@@ -379,9 +350,6 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
     lastWatchPosition,
     watchProgress,
     lessonProgressMap,
-    pppBlocked,
-    pppBlockedCountry,
-    pppPurchaseCountry,
   } = loaderData;
   const [autoplay, toggleAutoplay] = useAutoplay();
   const fetcher = useFetcher({ key: `mark-complete-${lesson.id}` });
@@ -407,78 +375,21 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
   const quizResult = quizFetcher.data?.quizResult ?? null;
   const isSubmittingQuiz = quizFetcher.state !== "idle";
 
-  if (pppBlocked) {
-    const purchaseCountryName = pppPurchaseCountry
-      ? (COUNTRIES.find((c) => c.code === pppPurchaseCountry)?.name ??
-        pppPurchaseCountry)
-      : "your original country";
-    const currentCountryName = pppBlockedCountry
-      ? (COUNTRIES.find((c) => c.code === pppBlockedCountry)?.name ??
-        pppBlockedCountry)
-      : "a different country";
-
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center p-6">
-        <div className="max-w-md text-center">
-          <ShieldAlert className="mx-auto mb-4 size-16 text-amber-500" />
-          <h1 className="mb-3 text-2xl font-bold">Access Restricted</h1>
-          <p className="mb-4 text-muted-foreground">
-            You purchased this course with a Purchasing Power Parity discount
-            while in <strong>{purchaseCountryName}</strong>, but you're
-            currently accessing from <strong>{currentCountryName}</strong>.
-          </p>
-          <p className="mb-6 text-sm text-muted-foreground">
-            PPP-discounted courses can only be accessed from the country where
-            the purchase was made. This helps keep courses affordable for
-            students in lower-income regions.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <Link to={`/courses/${course.slug}`}>
-              <Button variant="outline">
-                <MapPin className="mr-2 size-4" />
-                Back to Course
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex">
-      {/* Curriculum Sidebar */}
-      <CurriculumSidebar
-        course={course}
-        curriculum={curriculum}
-        currentLessonId={lesson.id}
-        lessonProgressMap={lessonProgressMap}
-        enrolled={enrolled}
-      />
-
-      <div className="flex-1 p-6 lg:p-8">
-        {/* Breadcrumb */}
-        <nav className="mb-6 text-sm text-muted-foreground">
-          <Link to="/courses" className="hover:text-foreground">
-            Courses
-          </Link>
-          <span className="mx-2">/</span>
-          <Link
-            to={`/courses/${course.slug}`}
-            className="hover:text-foreground"
-          >
-            {course.title}
-          </Link>
-          <span className="mx-2">/</span>
-          <Link
-            to={`/courses/${course.slug}/${mod.id}`}
-            className="hover:text-foreground"
-          >
-            {mod.title}
-          </Link>
-          <span className="mx-2">/</span>
-          <span className="text-foreground">{lesson.title}</span>
-        </nav>
+    <div className="p-6 lg:p-8">
+      {/* Breadcrumb */}
+      <nav className="mb-6 text-sm text-muted-foreground">
+        <Link
+          to={`/courses/${course.slug}`}
+          className="hover:text-foreground"
+        >
+          {course.title}
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-muted-foreground">{mod.title}</span>
+        <span className="mx-2">/</span>
+        <span className="text-foreground">{lesson.title}</span>
+      </nav>
 
         <div className="mx-auto max-w-4xl">
           {/* Lesson Title */}
@@ -641,127 +552,6 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function CurriculumSidebar({
-  course,
-  curriculum,
-  currentLessonId,
-  lessonProgressMap,
-  enrolled,
-}: {
-  course: { id: number; title: string; slug: string };
-  curriculum: Array<{
-    id: number;
-    title: string;
-    lessons: Array<{ id: number; title: string }>;
-  }>;
-  currentLessonId: number;
-  lessonProgressMap: Record<number, string>;
-  enrolled: boolean;
-}) {
-  // Find which module the current lesson belongs to
-  const currentModuleId = curriculum.find((m) =>
-    m.lessons.some((l) => l.id === currentLessonId)
-  )?.id;
-
-  const [expandedModules, setExpandedModules] = useState<Set<number>>(() => {
-    // Start with current module expanded
-    const initial = new Set<number>();
-    if (currentModuleId) initial.add(currentModuleId);
-    return initial;
-  });
-
-  function toggleModule(moduleId: number) {
-    setExpandedModules((prev) => {
-      const next = new Set(prev);
-      if (next.has(moduleId)) {
-        next.delete(moduleId);
-      } else {
-        next.add(moduleId);
-      }
-      return next;
-    });
-  }
-
-  return (
-    <aside className="hidden w-72 shrink-0 border-r border-border lg:block">
-      <div className="sticky top-0 flex h-screen flex-col overflow-y-auto">
-        <div className="border-b border-border p-4">
-          <Link
-            to={`/courses/${course.slug}`}
-            className="text-sm font-semibold hover:text-primary"
-          >
-            {course.title}
-          </Link>
-        </div>
-
-        <nav className="flex-1 p-2">
-          {curriculum.map((mod) => {
-            const isExpanded = expandedModules.has(mod.id);
-
-            return (
-              <div key={mod.id} className="mb-1">
-                <button
-                  onClick={() => toggleModule(mod.id)}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted"
-                >
-                  <ChevronDown
-                    className={cn(
-                      "size-4 shrink-0 transition-transform",
-                      !isExpanded && "-rotate-90"
-                    )}
-                  />
-                  <span className="flex-1 text-left">{mod.title}</span>
-                </button>
-
-                {isExpanded && (
-                  <ul className="ml-4 space-y-0.5 py-1">
-                    {mod.lessons.map((l) => {
-                      const isCurrent = l.id === currentLessonId;
-                      const status = lessonProgressMap[l.id];
-                      const isCompleted =
-                        status === LessonProgressStatus.Completed;
-                      const isInProgress =
-                        status === LessonProgressStatus.InProgress;
-
-                      return (
-                        <li key={l.id}>
-                          <Link
-                            to={`/courses/${course.slug}/lessons/${l.id}`}
-                            className={cn(
-                              "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
-                              isCurrent
-                                ? "bg-primary/10 font-medium text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            )}
-                          >
-                            {enrolled ? (
-                              isCompleted ? (
-                                <CheckCircle2 className="size-3.5 shrink-0 text-green-500" />
-                              ) : isInProgress ? (
-                                <PlayCircle className="size-3.5 shrink-0 text-blue-500" />
-                              ) : (
-                                <Circle className="size-3.5 shrink-0" />
-                              )
-                            ) : (
-                              <Circle className="size-3.5 shrink-0" />
-                            )}
-                            <span className="truncate">{l.title}</span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </nav>
-      </div>
-    </aside>
   );
 }
 
@@ -1041,14 +831,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         <AlertTriangle className="mx-auto mb-4 size-12 text-muted-foreground" />
         <h1 className="mb-2 text-2xl font-bold">{title}</h1>
         <p className="mb-6 text-muted-foreground">{message}</p>
-        <div className="flex items-center justify-center gap-3">
-          <Link to="/courses">
-            <Button variant="outline">Browse Courses</Button>
-          </Link>
-          <Link to="/dashboard">
-            <Button>My Dashboard</Button>
-          </Link>
-        </div>
+        <Link to="/">
+          <Button>Go Home</Button>
+        </Link>
       </div>
     </div>
   );
