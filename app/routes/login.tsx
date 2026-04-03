@@ -14,12 +14,11 @@ import { parseFormData } from "~/lib/validation";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent } from "~/components/ui/card";
-import { useState } from "react";
 
 type ActionResult = {
   errors: Record<string, string>;
   values: { email: string };
-  magicLinkSent: boolean;
+  resetLinkSent: boolean;
 };
 
 const loginSchema = z.object({
@@ -30,13 +29,13 @@ const loginSchema = z.object({
     .min(1, "Email is required.")
     .email("Please enter a valid email address."),
   password: z.string().optional(),
-  method: z.enum(["password", "magic_link"]),
+  intent: z.enum(["login", "forgot_password"]),
 });
 
 export function meta() {
   return [
-    { title: "Log In — Long-Game" },
-    { name: "description", content: "Log in to your Long-Game account" },
+    { title: "Log In — AI for the Long Game" },
+    { name: "description", content: "Log in to your AI for the Long Game account" },
   ];
 }
 
@@ -61,13 +60,13 @@ export async function action({ request }: Route.ActionArgs) {
       {
         errors: parsed.errors,
         values: { email: String(formData.get("email") ?? "") },
-        magicLinkSent: false,
+        resetLinkSent: false,
       },
       { status: 400 }
     );
   }
 
-  const { email, password, method } = parsed.data;
+  const { email, password, intent } = parsed.data;
   const responseHeaders = new Headers();
   const supabase = createSupabaseServerClient(request, responseHeaders);
 
@@ -76,7 +75,7 @@ export async function action({ request }: Route.ActionArgs) {
   const destination =
     redirectTo && redirectTo.startsWith("/") ? redirectTo : "/courses";
 
-  if (method === "magic_link") {
+  if (intent === "forgot_password") {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -89,7 +88,7 @@ export async function action({ request }: Route.ActionArgs) {
         {
           errors: { email: error.message },
           values: { email },
-          magicLinkSent: false,
+          resetLinkSent: false,
         },
         { status: 400 }
       );
@@ -99,7 +98,7 @@ export async function action({ request }: Route.ActionArgs) {
       {
         errors: {} as Record<string, string>,
         values: { email },
-        magicLinkSent: true,
+        resetLinkSent: true,
       },
       { headers: responseHeaders }
     );
@@ -111,7 +110,7 @@ export async function action({ request }: Route.ActionArgs) {
       {
         errors: { password: "Password is required." },
         values: { email },
-        magicLinkSent: false,
+        resetLinkSent: false,
       },
       { status: 400 }
     );
@@ -127,7 +126,7 @@ export async function action({ request }: Route.ActionArgs) {
       {
         errors: { email: error.message },
         values: { email },
-        magicLinkSent: false,
+        resetLinkSent: false,
       },
       { status: 400, headers: responseHeaders }
     );
@@ -141,10 +140,8 @@ export default function Login() {
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo");
-  const [method, setMethod] = useState<"password" | "magic_link">("password");
 
-  if (actionData?.magicLinkSent) {
+  if (actionData?.resetLinkSent) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
         <div className="w-full max-w-md text-center">
@@ -153,9 +150,9 @@ export default function Login() {
           </div>
           <h1 className="mb-2 text-xl font-semibold">Check your email</h1>
           <p className="text-sm text-muted-foreground">
-            We sent a magic link to{" "}
+            We sent a login link to{" "}
             <strong>{actionData.values?.email}</strong>. Click the link in the
-            email to log in.
+            email to access your account.
           </p>
         </div>
       </div>
@@ -167,18 +164,14 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link to="/" className="text-2xl font-bold tracking-tight">
-            Long-Game
+            AI for the Long Game
           </Link>
-          <h1 className="mt-4 text-xl font-semibold">Welcome back</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Log in to continue learning
-          </p>
         </div>
 
         <Card>
           <CardContent className="p-6">
             <Form method="post" className="space-y-4">
-              <input type="hidden" name="method" value={method} />
+              <input type="hidden" name="intent" value="login" />
               <div>
                 <label
                   htmlFor="email"
@@ -201,71 +194,54 @@ export default function Login() {
                 )}
               </div>
 
-              {method === "password" && (
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="mb-1.5 block text-sm font-medium"
-                  >
-                    Password
-                  </label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="Your password"
-                    aria-invalid={!!actionData?.errors?.password}
-                  />
-                  {actionData?.errors?.password && (
-                    <p className="mt-1 text-sm text-destructive">
-                      {actionData.errors.password}
-                    </p>
-                  )}
-                </div>
-              )}
+              <div>
+                <label
+                  htmlFor="password"
+                  className="mb-1.5 block text-sm font-medium"
+                >
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="Your password"
+                  aria-invalid={!!actionData?.errors?.password}
+                />
+                {actionData?.errors?.password && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {actionData.errors.password}
+                  </p>
+                )}
+              </div>
 
               <Button
                 type="submit"
                 className="w-full"
                 disabled={isSubmitting}
               >
-                {isSubmitting
-                  ? "Logging in..."
-                  : method === "magic_link"
-                    ? "Send Magic Link"
-                    : "Log In"}
+                {isSubmitting ? "Logging in..." : "Log In"}
               </Button>
             </Form>
 
             <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() =>
-                  setMethod(method === "password" ? "magic_link" : "password")
-                }
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                {method === "password"
-                  ? "Use magic link instead"
-                  : "Use password instead"}
-              </button>
+              <Form method="post">
+                <input type="hidden" name="intent" value="forgot_password" />
+                <input
+                  type="hidden"
+                  name="email"
+                  value={actionData?.values?.email ?? ""}
+                />
+                <button
+                  type="submit"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Forgot your password?
+                </button>
+              </Form>
             </div>
           </CardContent>
         </Card>
-
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Link
-            to={
-              redirectTo
-                ? `/signup?redirectTo=${encodeURIComponent(redirectTo)}`
-                : "/signup"
-            }
-            className="font-medium text-primary hover:underline"
-          >
-            Sign up
-          </Link>
-        </p>
       </div>
     </div>
   );

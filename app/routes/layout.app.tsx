@@ -1,4 +1,4 @@
-import { Outlet } from "react-router";
+import { Outlet, redirect } from "react-router";
 import type { Route } from "./+types/layout.app";
 import { Sidebar } from "~/components/sidebar";
 import { Toaster } from "sonner";
@@ -11,49 +11,71 @@ import {
   getTotalLessonCount,
 } from "~/services/progressService";
 import { isTeamAdmin } from "~/services/teamService";
+import { getDefaultCourse } from "~/lib/defaultCourse";
+import { isUserEnrolled } from "~/services/enrollmentService";
+import { UserRole } from "~/db/schema";
+
+const EXEMPT_PATHS = ["/no-access", "/settings"];
 
 export async function loader({ request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
   const currentUser = currentUserId ? await getUserById(currentUserId) : null;
 
-  const recentCourses = currentUserId
-    ? await Promise.all(
-        (await getRecentlyProgressedCourses(currentUserId)).map(async (course) => {
-          const completedLessons = await getCompletedLessonCount(
-            currentUserId,
-            course.courseId
-          );
-          const totalLessons = await getTotalLessonCount(course.courseId);
-          const progress = await calculateProgress(
-            currentUserId,
-            course.courseId,
-            false,
-            false
-          );
-          return {
-            courseId: course.courseId,
-            title: course.courseTitle,
-            slug: course.courseSlug,
-            coverImageUrl: course.coverImageUrl,
-            completedLessons,
-            totalLessons,
-            progress,
-          };
-        })
-      )
-    : [];
+  // Auth gate: must be logged in
+  if (!currentUser) {
+    const url = new URL(request.url);
+    throw redirect(`/login?returnTo=${encodeURIComponent(url.pathname)}`);
+  }
+
+  // Enrollment gate: must be enrolled (or admin) to access app routes
+  const url = new URL(request.url);
+  const isExempt = EXEMPT_PATHS.some((p) => url.pathname === p);
+
+  let isEnrolled = false;
+  if (!isExempt) {
+    const defaultCourse = await getDefaultCourse();
+    isEnrolled = await isUserEnrolled(currentUser.id, defaultCourse.id);
+
+    if (!isEnrolled && currentUser.role !== UserRole.Admin) {
+      throw redirect("/no-access");
+    }
+  }
+
+  const recentCourses = await Promise.all(
+    (await getRecentlyProgressedCourses(currentUser.id)).map(async (course) => {
+      const completedLessons = await getCompletedLessonCount(
+        currentUser.id,
+        course.courseId
+      );
+      const totalLessons = await getTotalLessonCount(course.courseId);
+      const progress = await calculateProgress(
+        currentUser.id,
+        course.courseId,
+        false,
+        false
+      );
+      return {
+        courseId: course.courseId,
+        title: course.courseTitle,
+        slug: course.courseSlug,
+        coverImageUrl: course.coverImageUrl,
+        completedLessons,
+        totalLessons,
+        progress,
+      };
+    })
+  );
 
   return {
-    currentUser: currentUser
-      ? {
-          id: currentUser.id,
-          name: currentUser.name,
-          role: currentUser.role,
-          avatarUrl: currentUser.avatarUrl ?? null,
-        }
-      : null,
+    currentUser: {
+      id: currentUser.id,
+      name: currentUser.name,
+      role: currentUser.role,
+      avatarUrl: currentUser.avatarUrl ?? null,
+    },
     recentCourses,
-    isTeamAdmin: currentUserId ? await isTeamAdmin(currentUserId) : false,
+    isTeamAdmin: await isTeamAdmin(currentUser.id),
+    isEnrolled,
   };
 }
 

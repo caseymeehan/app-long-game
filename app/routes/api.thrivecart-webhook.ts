@@ -1,10 +1,6 @@
 import type { Route } from "./+types/api.thrivecart-webhook";
 import { getSupabaseAdmin } from "~/lib/supabase-admin.server";
-import {
-  getUserByEmail,
-  createUserWithAuth,
-  linkSupabaseAuth,
-} from "~/services/userService";
+import { getUserByEmail } from "~/services/userService";
 import {
   createPurchase,
   findPurchaseByThrivecartOrderId,
@@ -15,7 +11,6 @@ import {
   findEnrollment,
   unenrollUser,
 } from "~/services/enrollmentService";
-import { UserRole } from "~/db/schema";
 
 // ThriveCart sends HEAD to verify the endpoint exists
 export async function loader({ request }: Route.LoaderArgs) {
@@ -84,66 +79,28 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
   const supabaseAdmin = getSupabaseAdmin();
   const name = `${firstName} ${lastName}`.trim() || email.split("@")[0];
 
-  // 1. Check if app user already exists (avoids unnecessary Supabase calls)
-  let appUser = await getUserByEmail(email);
+  // 1. Create Supabase auth user (trigger auto-creates public.users row)
+  const { data: createData, error: createError } =
+    await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: { name },
+    });
 
-  // 2. Find or create Supabase auth user
-  let supabaseAuthId: string;
-
-  if (appUser?.supabaseAuthId) {
-    // User already fully set up — just use their existing auth ID
-    supabaseAuthId = appUser.supabaseAuthId;
-  } else {
-    // Try to create a new Supabase auth user
-    const { data: createData, error: createError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email,
-        email_confirm: true,
-      });
-
-    if (createError) {
-      if (createError.message?.includes("already") || createError.status === 422) {
-        // User exists in Supabase auth — find them via paginated list
-        let found = false;
-        let page = 1;
-        while (!found) {
-          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({
-            page,
-            perPage: 100,
-          });
-          const match = listData?.users?.find(
-            (u) => u.email?.toLowerCase() === email
-          );
-          if (match) {
-            supabaseAuthId = match.id;
-            found = true;
-          } else if (!listData?.users?.length || listData.users.length < 100) {
-            break;
-          } else {
-            page++;
-          }
-        }
-        if (!found) {
-          console.error(`[thrivecart-webhook] Could not find existing auth user for ${email}`);
-          return new Response("Failed to find auth user", { status: 500 });
-        }
-      } else {
-        console.error(`[thrivecart-webhook] Failed to create auth user: ${createError.message}`);
-        return new Response("Failed to create auth user", { status: 500 });
-      }
-    } else {
-      supabaseAuthId = createData.user.id;
-    }
+  if (createError && !createError.message?.includes("already") && createError.status !== 422) {
+    console.error(`[thrivecart-webhook] Failed to create auth user: ${createError.message}`);
+    return new Response("Failed to create auth user", { status: 500 });
   }
 
-  // 3. Find or create app user
+  if (createData?.user) {
+    console.log(`[thrivecart-webhook] Created auth user ${createData.user.id} for ${email}`);
+  }
+
+  // 2. Wait briefly for trigger, then find the app user
+  const appUser = await waitForAppUser(email);
   if (!appUser) {
-    appUser = await createUserWithAuth(name, email, UserRole.Student, supabaseAuthId!, true);
-    console.log(`[thrivecart-webhook] Created app user ${appUser.id} for ${email}`);
-  } else if (!appUser.supabaseAuthId) {
-    // Link Supabase auth to existing app user
-    appUser = await linkSupabaseAuth(appUser.id, supabaseAuthId!);
-    console.log(`[thrivecart-webhook] Linked auth to existing user ${appUser.id}`);
+    console.error(`[thrivecart-webhook] App user not found for ${email} after retries`);
+    return new Response("App user not found", { status: 500 });
   }
 
   // 3. Create purchase record
@@ -168,12 +125,21 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
 
   if (otpError) {
     console.error(`[thrivecart-webhook] Failed to send magic link: ${otpError.message}`);
-    // Don't fail the webhook — account and enrollment are created, user can log in manually
   } else {
     console.log(`[thrivecart-webhook] Magic link sent to ${email}`);
   }
 
   return new Response("OK", { status: 200 });
+}
+
+async function waitForAppUser(email: string, maxRetries = 5) {
+  for (let i = 0; i < maxRetries; i++) {
+    const user = await getUserByEmail(email);
+    if (user) return user;
+    // Trigger runs async — wait a moment before retrying
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return null;
 }
 
 async function handleOrderRefund(params: URLSearchParams, courseId: number) {

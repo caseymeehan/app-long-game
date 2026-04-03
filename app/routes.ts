@@ -44,6 +44,7 @@ export default [
     route("team", "routes/team.tsx"),
     route("redeem/:code", "routes/redeem.$code.tsx"),
   ]),
+  route("no-access", "routes/no-access.tsx"),
   route("signup", "routes/signup.tsx"),
   route("login", "routes/login.tsx"),
   route("auth/callback", "routes/auth.callback.ts"),
