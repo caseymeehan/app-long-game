@@ -79,6 +79,40 @@ export async function getModuleCount(courseId: number) {
   return result?.count ?? 0;
 }
 
+// ─── Locking ───
+
+export async function lockModule(id: number) {
+  const [row] = await db
+    .update(modules)
+    .set({ isLocked: true, lockedAt: new Date().toISOString() })
+    .where(eq(modules.id, id))
+    .returning();
+  return row;
+}
+
+export async function unlockModule(id: number) {
+  const [row] = await db
+    .update(modules)
+    .set({ isLocked: false, lockedAt: new Date().toISOString() })
+    .where(eq(modules.id, id))
+    .returning();
+  return row;
+}
+
+export async function lockAllModules(courseId: number) {
+  await db
+    .update(modules)
+    .set({ isLocked: true, lockedAt: new Date().toISOString() })
+    .where(eq(modules.courseId, courseId));
+}
+
+export async function unlockAllModules(courseId: number) {
+  await db
+    .update(modules)
+    .set({ isLocked: false, lockedAt: new Date().toISOString() })
+    .where(eq(modules.courseId, courseId));
+}
+
 // ─── Reordering ───
 
 export async function moveModuleToPosition(moduleId: number, newPosition: number) {

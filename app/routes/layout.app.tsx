@@ -57,6 +57,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         id: mod.id,
         title: mod.title,
         position: mod.position,
+        isLocked: mod.isLocked,
         lessons: modLessons.map((l) => ({
           id: l.id,
           title: l.title,

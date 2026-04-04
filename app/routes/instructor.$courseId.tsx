@@ -24,6 +24,8 @@ import {
   deleteModule,
   getModuleById,
   reorderModules,
+  lockModule,
+  unlockModule,
 } from "~/services/moduleService";
 import {
   createLesson,
@@ -59,11 +61,13 @@ import {
   Eye,
   FileEdit,
   GripVertical,
+  Lock,
   Pencil,
   Plus,
   Save,
   Settings,
   Trash2,
+  Unlock,
   Users,
   AlertTriangle,
   Award,
@@ -87,6 +91,7 @@ const courseEditorActionSchema = z.discriminatedUnion("intent", [
   z.object({ intent: z.literal("add-module"), title: z.string().trim().min(1, "Module title cannot be empty.") }),
   z.object({ intent: z.literal("rename-module"), moduleId: z.coerce.number().int(), title: z.string().trim().min(1, "Module title cannot be empty.") }),
   z.object({ intent: z.literal("delete-module"), moduleId: z.coerce.number().int() }),
+  z.object({ intent: z.literal("toggle-lock"), moduleId: z.coerce.number().int() }),
   z.object({ intent: z.literal("add-lesson"), moduleId: z.coerce.number().int(), title: z.string().trim().min(1, "Lesson title cannot be empty.") }),
   z.object({ intent: z.literal("rename-lesson"), lessonId: z.coerce.number().int(), title: z.string().trim().min(1, "Lesson title cannot be empty.") }),
   z.object({ intent: z.literal("reorder-modules"), moduleIds: z.string().min(1, "Missing module IDs.") }),
@@ -274,6 +279,20 @@ export async function action({ params, request }: Route.ActionArgs) {
       return data({ error: "Module not found in this course." }, { status: 404 });
     }
     await deleteModule(moduleId);
+    return { success: true, field: "module" };
+  }
+
+  if (intent === "toggle-lock") {
+    const { moduleId } = parsed.data;
+    const mod = await getModuleById(moduleId);
+    if (!mod || mod.courseId !== courseId) {
+      return data({ error: "Module not found in this course." }, { status: 404 });
+    }
+    if (mod.isLocked) {
+      await unlockModule(moduleId);
+    } else {
+      await lockModule(moduleId);
+    }
     return { success: true, field: "module" };
   }
 
@@ -609,6 +628,30 @@ function InlineEditableModuleTitle({
       <h3 className="font-semibold">{value}</h3>
       <Pencil className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
     </button>
+  );
+}
+
+function ToggleLockButton({ moduleId, isLocked }: { moduleId: number; isLocked: boolean }) {
+  const fetcher = useFetcher();
+
+  return (
+    <fetcher.Form method="post">
+      <input type="hidden" name="intent" value="toggle-lock" />
+      <input type="hidden" name="moduleId" value={moduleId} />
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+        type="submit"
+        title={isLocked ? "Unlock module" : "Lock module"}
+      >
+        {isLocked ? (
+          <Lock className="size-4" />
+        ) : (
+          <Unlock className="size-4 text-green-500" />
+        )}
+      </Button>
+    </fetcher.Form>
   );
 }
 
@@ -1253,6 +1296,10 @@ export default function InstructorCourseEditor({
                                       </p>
                                     </div>
                                   </div>
+                                  <ToggleLockButton
+                                    moduleId={mod.id}
+                                    isLocked={mod.isLocked}
+                                  />
                                   <DeleteModuleButton
                                     moduleId={mod.id}
                                     moduleTitle={mod.title}

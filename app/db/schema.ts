@@ -89,6 +89,8 @@ export const modules = pgTable("modules", {
     .references(() => courses.id),
   title: text("title").notNull(),
   position: integer("position").notNull(),
+  isLocked: boolean("is_locked").notNull().default(true),
+  lockedAt: text("locked_at"),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),

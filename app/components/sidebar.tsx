@@ -5,7 +5,6 @@ import { UserRole } from "~/db/schema";
 import { UserAvatar } from "~/components/user-avatar";
 import { ModuleNav } from "~/components/module-nav";
 import {
-  Shield,
   Tag,
   Users,
   Moon,

@@ -1,7 +1,7 @@
 import { NavLink } from "react-router";
 import { useState } from "react";
 import { cn } from "~/lib/utils";
-import { ChevronRight, Circle, CheckCircle2 } from "lucide-react";
+import { ChevronRight, Circle, CheckCircle2, Lock } from "lucide-react";
 
 interface Lesson {
   id: number;
@@ -13,6 +13,7 @@ interface Module {
   id: number;
   title: string;
   position: number;
+  isLocked: boolean;
   lessons: Lesson[];
 }
 
@@ -23,9 +24,9 @@ interface ModuleNavProps {
 
 export function ModuleNav({ modules, courseSlug }: ModuleNavProps) {
   const [expandedModules, setExpandedModules] = useState<Set<number>>(() => {
-    // Auto-expand the first module with incomplete lessons
-    const first = modules.find((m) =>
-      m.lessons.some((l) => !l.completed)
+    // Auto-expand the first unlocked module with incomplete lessons
+    const first = modules.find(
+      (m) => !m.isLocked && m.lessons.some((l) => !l.completed)
     );
     return new Set(first ? [first.id] : modules[0] ? [modules[0].id] : []);
   });
@@ -53,20 +54,26 @@ export function ModuleNav({ modules, courseSlug }: ModuleNavProps) {
         return (
           <div key={mod.id}>
             <button
-              onClick={() => toggleModule(mod.id)}
+              onClick={() => !mod.isLocked && toggleModule(mod.id)}
               className={cn(
                 "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                mod.isLocked
+                  ? "text-sidebar-foreground/40 cursor-not-allowed"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >
-              <ChevronRight
-                className={cn(
-                  "size-3.5 shrink-0 transition-transform",
-                  isExpanded && "rotate-90"
-                )}
-              />
+              {mod.isLocked ? (
+                <Lock className="size-3.5 shrink-0" />
+              ) : (
+                <ChevronRight
+                  className={cn(
+                    "size-3.5 shrink-0 transition-transform",
+                    isExpanded && "rotate-90"
+                  )}
+                />
+              )}
               <span className="truncate text-left flex-1">{mod.title}</span>
-              {totalCount > 0 && (
+              {!mod.isLocked && totalCount > 0 && (
                 <span
                   className={cn(
                     "shrink-0 text-xs",
@@ -80,7 +87,7 @@ export function ModuleNav({ modules, courseSlug }: ModuleNavProps) {
               )}
             </button>
 
-            {isExpanded && mod.lessons.length > 0 && (
+            {!mod.isLocked && isExpanded && mod.lessons.length > 0 && (
               <div className="ml-3 space-y-0.5 border-l border-sidebar-border pl-3">
                 {mod.lessons.map((lesson) => (
                   <NavLink

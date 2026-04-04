@@ -126,6 +126,16 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   }
 
   const currentUserId = await getCurrentUserId(request);
+
+  // Module lock check (admins bypass)
+  if (mod.isLocked) {
+    const currentUser = currentUserId
+      ? await (await import("~/services/userService")).getUserById(currentUserId)
+      : null;
+    if (currentUser?.role !== "admin") {
+      throw data("This module hasn't been unlocked yet.", { status: 403 });
+    }
+  }
   let enrolled = false;
   let lessonStatus: string | null = null;
   let lastWatchPosition = 0;
