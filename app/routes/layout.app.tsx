@@ -7,6 +7,7 @@ import { getCurrentUserId } from "~/lib/session";
 import { getLessonProgressForCourse } from "~/services/progressService";
 import { getDefaultCourse } from "~/lib/defaultCourse";
 import { isUserEnrolled } from "~/services/enrollmentService";
+import { isActivePartner } from "~/services/partnerService";
 import { getModulesByCourse } from "~/services/moduleService";
 import { getLessonsByModule } from "~/services/lessonService";
 import { UserRole, LessonProgressStatus } from "~/db/schema";
@@ -29,43 +30,55 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   const defaultCourse = await getDefaultCourse();
   let isEnrolled = false;
+  const partnerActive = await isActivePartner(currentUser.id);
 
   if (!isExempt) {
     isEnrolled = await isUserEnrolled(currentUser.id, defaultCourse.id);
 
-    if (!isEnrolled && currentUser.role !== UserRole.Admin) {
+    if (!isEnrolled && !partnerActive && currentUser.role !== UserRole.Admin) {
       throw redirect("/no-access");
     }
   }
 
-  // Fetch modules with lessons for the sidebar
-  const courseModules = await getModulesByCourse(defaultCourse.id);
-  const progressRecords = await getLessonProgressForCourse(
-    currentUser.id,
-    defaultCourse.id
-  );
-  const completedLessonIds = new Set(
-    progressRecords
-      .filter((p) => p.status === LessonProgressStatus.Completed)
-      .map((p) => p.lessonId)
-  );
+  // Fetch modules with lessons for the sidebar (only if enrolled or admin)
+  const showModules = isEnrolled || currentUser.role === UserRole.Admin;
+  let modulesWithLessons: Array<{
+    id: number;
+    title: string;
+    position: number;
+    isLocked: boolean;
+    lessons: Array<{ id: number; title: string; completed: boolean }>;
+  }> = [];
 
-  const modulesWithLessons = await Promise.all(
-    courseModules.map(async (mod) => {
-      const modLessons = await getLessonsByModule(mod.id);
-      return {
-        id: mod.id,
-        title: mod.title,
-        position: mod.position,
-        isLocked: mod.isLocked,
-        lessons: modLessons.map((l) => ({
-          id: l.id,
-          title: l.title,
-          completed: completedLessonIds.has(l.id),
-        })),
-      };
-    })
-  );
+  if (showModules) {
+    const courseModules = await getModulesByCourse(defaultCourse.id);
+    const progressRecords = await getLessonProgressForCourse(
+      currentUser.id,
+      defaultCourse.id
+    );
+    const completedLessonIds = new Set(
+      progressRecords
+        .filter((p) => p.status === LessonProgressStatus.Completed)
+        .map((p) => p.lessonId)
+    );
+
+    modulesWithLessons = await Promise.all(
+      courseModules.map(async (mod) => {
+        const modLessons = await getLessonsByModule(mod.id);
+        return {
+          id: mod.id,
+          title: mod.title,
+          position: mod.position,
+          isLocked: mod.isLocked,
+          lessons: modLessons.map((l) => ({
+            id: l.id,
+            title: l.title,
+            completed: completedLessonIds.has(l.id),
+          })),
+        };
+      })
+    );
+  }
 
   return {
     currentUser: {
@@ -78,11 +91,13 @@ export async function loader({ request }: Route.LoaderArgs) {
     courseTitle: defaultCourse.title,
     modules: modulesWithLessons,
     isEnrolled,
+    isPartner: partnerActive,
   };
 }
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
-  const { currentUser, courseSlug, courseTitle, modules } = loaderData;
+  const { currentUser, courseSlug, courseTitle, modules, isPartner } =
+    loaderData;
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -91,6 +106,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         courseSlug={courseSlug}
         courseTitle={courseTitle}
         modules={modules}
+        isPartner={isPartner}
       />
       <main className="flex-1 overflow-y-auto">
         <Outlet />

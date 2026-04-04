@@ -64,6 +64,19 @@ export async function updateModuleTitle(id: number, title: string) {
   return row;
 }
 
+export async function updateModuleContent(
+  id: number,
+  content: string | null,
+  videoUrl: string | null
+) {
+  const [row] = await db
+    .update(modules)
+    .set({ content, videoUrl })
+    .where(eq(modules.id, id))
+    .returning();
+  return row;
+}
+
 export async function deleteModule(id: number) {
   // Delete all lessons in this module first
   await db.delete(lessons).where(eq(lessons.moduleId, id));

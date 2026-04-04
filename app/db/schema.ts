@@ -88,6 +88,8 @@ export const modules = pgTable("modules", {
     .notNull()
     .references(() => courses.id),
   title: text("title").notNull(),
+  content: text("content"),
+  videoUrl: text("video_url"),
   position: integer("position").notNull(),
   isLocked: boolean("is_locked").notNull().default(true),
   lockedAt: text("locked_at"),
@@ -263,6 +265,54 @@ export const videoWatchEvents = pgTable("video_watch_events", {
   eventType: text("event_type").notNull(),
   positionSeconds: real("position_seconds").notNull(),
   createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+// ─── Partner / Affiliate Tables ───
+
+export const partners = pgTable("partners", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id)
+    .unique(),
+  affiliateId: text("affiliate_id").notNull(),
+  commissionTier: text("commission_tier"),
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const partnerResourceCategories = pgTable("partner_resource_categories", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  position: integer("position").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const partnerResources = pgTable("partner_resources", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("category_id")
+    .notNull()
+    .references(() => partnerResourceCategories.id),
+  title: text("title").notNull(),
+  content: text("content"),
+  position: integer("position").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const partnerPageSettings = pgTable("partner_page_settings", {
+  id: serial("id").primaryKey(),
+  content: text("content"),
+  videoUrl: text("video_url"),
+  updatedAt: text("updated_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });

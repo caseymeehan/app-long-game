@@ -1296,6 +1296,18 @@ export default function InstructorCourseEditor({
                                       </p>
                                     </div>
                                   </div>
+                                  <Link
+                                    to={`/instructor/${course.id}/modules/${mod.id}/content`}
+                                    title="Edit module content"
+                                  >
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                    >
+                                      <FileEdit className="size-4" />
+                                    </Button>
+                                  </Link>
                                   <ToggleLockButton
                                     moduleId={mod.id}
                                     isLocked={mod.isLocked}

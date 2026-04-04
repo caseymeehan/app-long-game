@@ -34,12 +34,27 @@ export default [
       "routes/instructor.$courseId.modules.$moduleId.tsx"
     ),
     route(
+      "instructor/:courseId/modules/:moduleId/content",
+      "routes/instructor.$courseId.modules.$moduleId.content.tsx"
+    ),
+    route(
       "instructor/:courseId/students",
       "routes/instructor.$courseId.students.tsx"
     ),
     route("admin/users", "routes/admin.users.tsx"),
     route("admin/courses", "routes/admin.courses.tsx"),
     route("admin/categories", "routes/admin.categories.tsx"),
+    route("admin/partners", "routes/admin.partners.tsx"),
+    route("admin/partner-resources", "routes/admin.partner-resources.tsx"),
+    route(
+      "admin/partner-resources/:resourceId",
+      "routes/admin.partner-resources.$resourceId.tsx"
+    ),
+    route("partner-resources", "routes/partner-resources.tsx"),
+    route(
+      "partner-resources/:resourceId",
+      "routes/partner-resources.$resourceId.tsx"
+    ),
     route("settings", "routes/settings.tsx"),
     route("team", "routes/team.tsx"),
     route("redeem/:code", "routes/redeem.$code.tsx"),

@@ -15,6 +15,13 @@
       "when": 1775070164257,
       "tag": "0001_pink_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775316399961,
+      "tag": "0002_flaky_scrambler",
+      "breakpoints": true
     }
   ]
 }

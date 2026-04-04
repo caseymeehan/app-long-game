@@ -5,13 +5,14 @@ import { UserRole } from "~/db/schema";
 import { UserAvatar } from "~/components/user-avatar";
 import { ModuleNav } from "~/components/module-nav";
 import {
-  Tag,
   Users,
   Moon,
   Sun,
   LogOut,
   Settings,
   Layers,
+  Handshake,
+  FileText,
 } from "lucide-react";
 
 interface CurrentUser {
@@ -39,6 +40,7 @@ interface SidebarProps {
   courseSlug: string;
   courseTitle: string;
   modules: Module[];
+  isPartner: boolean;
 }
 
 export function Sidebar({
@@ -46,6 +48,7 @@ export function Sidebar({
   courseSlug,
   courseTitle,
   modules,
+  isPartner,
 }: SidebarProps) {
   const [isDark, setIsDark] = useState(false);
 
@@ -73,7 +76,9 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3">
-        <ModuleNav modules={modules} courseSlug={courseSlug} />
+        {modules.length > 0 && (
+          <ModuleNav modules={modules} courseSlug={courseSlug} />
+        )}
 
         {isAdmin && (
           <div className="mt-6 border-t border-sidebar-border pt-4">
@@ -110,7 +115,7 @@ export function Sidebar({
                 Manage Courses
               </NavLink>
               <NavLink
-                to="/admin/categories"
+                to="/admin/partners"
                 className={({ isActive }) =>
                   cn(
                     "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
@@ -120,10 +125,43 @@ export function Sidebar({
                   )
                 }
               >
-                <Tag className="size-4" />
-                Categories
+                <Handshake className="size-4" />
+                Manage Partners
+              </NavLink>
+              <NavLink
+                to="/admin/partner-resources"
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  )
+                }
+              >
+                <FileText className="size-4" />
+                Partner Content
               </NavLink>
             </div>
+          </div>
+        )}
+
+        {isPartner && (
+          <div className="mt-6 border-t border-sidebar-border pt-4">
+            <NavLink
+              to="/partner-resources"
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )
+              }
+            >
+              <Handshake className="size-4" />
+              Partner Resources
+            </NavLink>
           </div>
         )}
       </nav>

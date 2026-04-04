@@ -1,4 +1,4 @@
-import { NavLink } from "react-router";
+import { NavLink, useLocation } from "react-router";
 import { useState } from "react";
 import { cn } from "~/lib/utils";
 import { ChevronRight, Circle, CheckCircle2, Lock } from "lucide-react";
@@ -53,26 +53,49 @@ export function ModuleNav({ modules, courseSlug }: ModuleNavProps) {
 
         return (
           <div key={mod.id}>
-            <button
-              onClick={() => !mod.isLocked && toggleModule(mod.id)}
+            <div
               className={cn(
-                "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex w-full items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 mod.isLocked
-                  ? "text-sidebar-foreground/40 cursor-not-allowed"
+                  ? "text-sidebar-foreground/40"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >
               {mod.isLocked ? (
                 <Lock className="size-3.5 shrink-0" />
               ) : (
-                <ChevronRight
-                  className={cn(
-                    "size-3.5 shrink-0 transition-transform",
-                    isExpanded && "rotate-90"
-                  )}
-                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleModule(mod.id);
+                  }}
+                  className="shrink-0 p-0.5 rounded hover:bg-sidebar-accent"
+                >
+                  <ChevronRight
+                    className={cn(
+                      "size-3.5 transition-transform",
+                      isExpanded && "rotate-90"
+                    )}
+                  />
+                </button>
               )}
-              <span className="truncate text-left flex-1">{mod.title}</span>
+              {mod.isLocked ? (
+                <span className="truncate text-left flex-1 cursor-not-allowed">
+                  {mod.title}
+                </span>
+              ) : (
+                <NavLink
+                  to={`/courses/${courseSlug}/${mod.id}`}
+                  className={({ isActive }) =>
+                    cn(
+                      "truncate text-left flex-1",
+                      isActive && "text-sidebar-accent-foreground"
+                    )
+                  }
+                >
+                  {mod.title}
+                </NavLink>
+              )}
               {!mod.isLocked && totalCount > 0 && (
                 <span
                   className={cn(
@@ -85,7 +108,7 @@ export function ModuleNav({ modules, courseSlug }: ModuleNavProps) {
                   {completedCount}/{totalCount}
                 </span>
               )}
-            </button>
+            </div>
 
             {!mod.isLocked && isExpanded && mod.lessons.length > 0 && (
               <div className="ml-3 space-y-0.5 border-l border-sidebar-border pl-3">

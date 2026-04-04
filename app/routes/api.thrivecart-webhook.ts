@@ -1,6 +1,7 @@
 import type { Route } from "./+types/api.thrivecart-webhook";
 import { getSupabaseAdmin } from "~/lib/supabase-admin.server";
 import { getUserByEmail } from "~/services/userService";
+import { waitForAppUser } from "~/lib/wait-for-user";
 import {
   createPurchase,
   findPurchaseByThrivecartOrderId,
@@ -130,16 +131,6 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
   }
 
   return new Response("OK", { status: 200 });
-}
-
-async function waitForAppUser(email: string, maxRetries = 5) {
-  for (let i = 0; i < maxRetries; i++) {
-    const user = await getUserByEmail(email);
-    if (user) return user;
-    // Trigger runs async — wait a moment before retrying
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  return null;
 }
 
 async function handleOrderRefund(params: URLSearchParams, courseId: number) {

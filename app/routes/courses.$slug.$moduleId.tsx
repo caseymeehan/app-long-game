@@ -9,6 +9,8 @@ import { isUserEnrolled } from "~/services/enrollmentService";
 import { getLessonProgressForCourse } from "~/services/progressService";
 import { getCurrentUserId } from "~/lib/session";
 import { LessonProgressStatus } from "~/db/schema";
+import { renderMarkdown } from "~/lib/markdown.server";
+import { YouTubePlayer } from "~/components/youtube-player";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -98,6 +100,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     0
   );
 
+  // Render module content from Markdown to HTML server-side
+  const contentHtml = moduleWithLessons.content
+    ? await renderMarkdown(moduleWithLessons.content)
+    : null;
+
   return {
     course: {
       id: courseWithDetails.id,
@@ -108,6 +115,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
       instructorBio: courseWithDetails.instructorBio,
     },
     module: moduleWithLessons,
+    contentHtml,
     enrolled,
     lessonProgressMap,
     moduleProgress,
@@ -149,6 +157,7 @@ export default function ModuleDetail({ loaderData }: Route.ComponentProps) {
   const {
     course,
     module: mod,
+    contentHtml,
     enrolled,
     lessonProgressMap,
     moduleProgress,
@@ -205,6 +214,31 @@ export default function ModuleDetail({ loaderData }: Route.ComponentProps) {
         </div>
       )}
 
+      {/* Module video */}
+      {mod.videoUrl && (
+        <div className="mb-6">
+          <YouTubePlayer
+            videoUrl={mod.videoUrl}
+            lessonId={mod.id}
+            title={mod.title}
+            startPosition={0}
+            durationMinutes={null}
+            watchProgress={0}
+            trackingEnabled={false}
+            autoplay={false}
+            onToggleAutoplay={() => {}}
+          />
+        </div>
+      )}
+
+      {/* Module content */}
+      {contentHtml && (
+        <div
+          className="prose prose-neutral dark:prose-invert mb-8 max-w-none"
+          dangerouslySetInnerHTML={{ __html: contentHtml }}
+        />
+      )}
+
       {/* Instructor card */}
       <Card className="mb-8">
         <CardContent className="p-4">
@@ -227,12 +261,13 @@ export default function ModuleDetail({ loaderData }: Route.ComponentProps) {
       </Card>
 
       {/* Lesson list */}
-      <h2 className="mb-4 text-xl font-semibold">Lessons</h2>
-      {mod.lessons.length === 0 ? (
+      {mod.lessons.length === 0 && !contentHtml && !mod.videoUrl ? (
         <p className="text-muted-foreground">
-          No lessons have been added to this module yet.
+          No content has been added to this module yet.
         </p>
-      ) : (
+      ) : mod.lessons.length > 0 ? (
+        <>
+        <h2 className="mb-4 text-xl font-semibold">Lessons</h2>
         <div className="space-y-1">
           {mod.lessons.map((lesson) => {
             const status = lessonProgressMap[lesson.id];
@@ -290,7 +325,8 @@ export default function ModuleDetail({ loaderData }: Route.ComponentProps) {
             return <div key={lesson.id}>{content}</div>;
           })}
         </div>
-      )}
+        </>
+      ) : null}
     </div>
   );
 }
