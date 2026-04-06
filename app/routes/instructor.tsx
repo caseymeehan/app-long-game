@@ -2,14 +2,13 @@ import { Link } from "react-router";
 import type { Route } from "./+types/instructor";
 import { getCoursesByInstructor, getLessonCountForCourse } from "~/services/courseService";
 import { getEnrollmentCountForCourse } from "~/services/enrollmentService";
-import { getCurrentUserId } from "~/lib/session";
-import { getUserById } from "~/services/userService";
+import { requireRole } from "~/lib/session";
 import { Card, CardContent, CardFooter, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { AlertTriangle, BookOpen, GraduationCap, Plus, Users } from "lucide-react";
 import { CourseImage } from "~/components/course-image";
-import { data, isRouteErrorResponse, redirect } from "react-router";
+import { data, isRouteErrorResponse } from "react-router";
 import { CourseStatus, UserRole } from "~/db/schema";
 
 export function meta() {
@@ -20,21 +19,9 @@ export function meta() {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const currentUserId = await getCurrentUserId(request);
+  const user = await requireRole(request, UserRole.Instructor);
 
-  if (!currentUserId) {
-    throw redirect("/login");
-  }
-
-  const user = await getUserById(currentUserId);
-
-  if (!user || user.role !== UserRole.Instructor) {
-    throw data("Only instructors can access this page.", {
-      status: 403,
-    });
-  }
-
-  const instructorCourses = await getCoursesByInstructor(currentUserId);
+  const instructorCourses = await getCoursesByInstructor(user.id);
 
   const coursesWithStats = await Promise.all(instructorCourses.map(async (course) => {
     const lessonCount = await getLessonCountForCourse(course.id);

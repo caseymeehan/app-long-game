@@ -7,16 +7,14 @@ import {
   updateResource,
   getCategoryById,
 } from "~/services/partnerResourceService";
-import { getCurrentUserId } from "~/lib/session";
-import { getUserById } from "~/services/userService";
-import { UserRole } from "~/db/schema";
+import { requireAdmin } from "~/lib/session";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { MonacoMarkdownEditor } from "~/components/monaco-markdown-editor";
 import { AlertTriangle, ArrowLeft, Save } from "lucide-react";
-import { data, isRouteErrorResponse, redirect } from "react-router";
+import { data, isRouteErrorResponse } from "react-router";
 import { z } from "zod";
 import { parseFormData } from "~/lib/validation";
 
@@ -35,13 +33,7 @@ export function meta({ data: loaderData }: Route.MetaArgs) {
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
-  const currentUserId = await getCurrentUserId(request);
-  if (!currentUserId) throw redirect("/login");
-
-  const currentUser = await getUserById(currentUserId);
-  if (!currentUser || currentUser.role !== UserRole.Admin) {
-    throw data("Only admins can access this page.", { status: 403 });
-  }
+  await requireAdmin(request);
 
   const resourceId = parseInt(params.resourceId, 10);
   if (isNaN(resourceId)) {
@@ -59,13 +51,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 }
 
 export async function action({ params, request }: Route.ActionArgs) {
-  const currentUserId = await getCurrentUserId(request);
-  if (!currentUserId) throw data("You must be logged in.", { status: 401 });
-
-  const currentUser = await getUserById(currentUserId);
-  if (!currentUser || currentUser.role !== UserRole.Admin) {
-    throw data("Only admins can edit resources.", { status: 403 });
-  }
+  await requireAdmin(request, "action");
 
   const resourceId = parseInt(params.resourceId, 10);
   if (isNaN(resourceId)) {

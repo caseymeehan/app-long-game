@@ -9,16 +9,14 @@ import {
   updateCategory,
   deleteCategory,
 } from "~/services/categoryService";
-import { getCurrentUserId } from "~/lib/session";
-import { getUserById } from "~/services/userService";
+import { requireAdmin } from "~/lib/session";
 import { parseFormData } from "~/lib/validation";
-import { UserRole } from "~/db/schema";
 import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
 import { AlertTriangle, BookOpen, Pencil, Plus, Tag, Trash2 } from "lucide-react";
-import { data, isRouteErrorResponse, Link, redirect } from "react-router";
+import { data, isRouteErrorResponse, Link } from "react-router";
 
 const adminCategoryActionSchema = z.discriminatedUnion("intent", [
   z.object({
@@ -44,19 +42,7 @@ export function meta() {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const currentUserId = await getCurrentUserId(request);
-
-  if (!currentUserId) {
-    throw redirect("/login");
-  }
-
-  const currentUser = await getUserById(currentUserId);
-
-  if (!currentUser || currentUser.role !== UserRole.Admin) {
-    throw data("Only admins can access this page.", {
-      status: 403,
-    });
-  }
+  await requireAdmin(request);
 
   const categories = await getAllCategoriesWithCourseCounts();
 
@@ -64,16 +50,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const currentUserId = await getCurrentUserId(request);
-
-  if (!currentUserId) {
-    throw data("You must be logged in.", { status: 401 });
-  }
-
-  const currentUser = await getUserById(currentUserId);
-  if (!currentUser || currentUser.role !== UserRole.Admin) {
-    throw data("Only admins can manage categories.", { status: 403 });
-  }
+  await requireAdmin(request, "action");
 
   const formData = await request.formData();
   const parsed = parseFormData(formData, adminCategoryActionSchema);

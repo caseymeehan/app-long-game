@@ -52,13 +52,17 @@ export async function action({ request }: Route.ActionArgs) {
   }
 }
 
+function sanitize(value: string | null, maxLength: number): string {
+  return (value ?? "").trim().slice(0, maxLength);
+}
+
 async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
-  const orderId = params.get("order_id");
-  const email = params.get("customer[email]")?.toLowerCase().trim();
-  const firstName = params.get("customer[first_name]") || "";
-  const lastName = params.get("customer[last_name]") || "";
-  const totalStr = params.get("order[0][total]") || "0";
-  const affiliateId = params.get("affiliate[id]") || undefined;
+  const orderId = sanitize(params.get("order_id"), 100);
+  const email = sanitize(params.get("customer[email]"), 254)?.toLowerCase();
+  const firstName = sanitize(params.get("customer[first_name]"), 100);
+  const lastName = sanitize(params.get("customer[last_name]"), 100);
+  const totalStr = sanitize(params.get("order[0][total]"), 20) || "0";
+  const affiliateId = sanitize(params.get("affiliate[id]"), 100) || undefined;
 
   if (!email) {
     console.error("[thrivecart-webhook] order.success missing customer email");
@@ -134,8 +138,8 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
 }
 
 async function handleOrderRefund(params: URLSearchParams, courseId: number) {
-  const orderId = params.get("order_id");
-  const email = params.get("customer[email]")?.toLowerCase().trim();
+  const orderId = sanitize(params.get("order_id"), 100);
+  const email = sanitize(params.get("customer[email]"), 254)?.toLowerCase();
 
   if (!orderId) {
     console.error("[thrivecart-webhook] order.refund missing order_id");

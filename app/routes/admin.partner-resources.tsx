@@ -13,10 +13,8 @@ import {
   createResource,
   deleteResource,
 } from "~/services/partnerResourceService";
-import { getCurrentUserId } from "~/lib/session";
-import { getUserById } from "~/services/userService";
+import { requireAdmin } from "~/lib/session";
 import { parseFormData } from "~/lib/validation";
-import { UserRole } from "~/db/schema";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -35,7 +33,7 @@ import {
   Trash2,
   Video,
 } from "lucide-react";
-import { data, isRouteErrorResponse, redirect } from "react-router";
+import { data, isRouteErrorResponse } from "react-router";
 
 const adminPartnerResourceActionSchema = z.discriminatedUnion("intent", [
   z.object({
@@ -75,13 +73,7 @@ export function meta() {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const currentUserId = await getCurrentUserId(request);
-  if (!currentUserId) throw redirect("/login");
-
-  const currentUser = await getUserById(currentUserId);
-  if (!currentUser || currentUser.role !== UserRole.Admin) {
-    throw data("Only admins can access this page.", { status: 403 });
-  }
+  await requireAdmin(request);
 
   const pageSettings = await getPageSettings();
   const categories = await getAllCategoriesWithResources();
@@ -90,13 +82,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const currentUserId = await getCurrentUserId(request);
-  if (!currentUserId) throw data("You must be logged in.", { status: 401 });
-
-  const currentUser = await getUserById(currentUserId);
-  if (!currentUser || currentUser.role !== UserRole.Admin) {
-    throw data("Only admins can manage partner resources.", { status: 403 });
-  }
+  await requireAdmin(request, "action");
 
   const formData = await request.formData();
   const parsed = parseFormData(formData, adminPartnerResourceActionSchema);

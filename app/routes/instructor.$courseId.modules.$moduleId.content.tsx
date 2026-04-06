@@ -4,8 +4,7 @@ import { toast } from "sonner";
 import type { Route } from "./+types/instructor.$courseId.modules.$moduleId.content";
 import { getCourseById } from "~/services/courseService";
 import { getModuleById, updateModuleContent } from "~/services/moduleService";
-import { getCurrentUserId } from "~/lib/session";
-import { getUserById } from "~/services/userService";
+import { requireInstructor } from "~/lib/session";
 import { UserRole } from "~/db/schema";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
@@ -13,7 +12,7 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { MonacoMarkdownEditor } from "~/components/monaco-markdown-editor";
 import { AlertTriangle, ArrowLeft, ExternalLink, Save } from "lucide-react";
-import { data, isRouteErrorResponse, redirect } from "react-router";
+import { data, isRouteErrorResponse } from "react-router";
 import { z } from "zod";
 import { parseFormData, parseParams } from "~/lib/validation";
 
@@ -37,22 +36,7 @@ export function meta({ data: loaderData }: Route.MetaArgs) {
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
-  const currentUserId = await getCurrentUserId(request);
-
-  if (!currentUserId) {
-    throw redirect("/login");
-  }
-
-  const user = await getUserById(currentUserId);
-
-  if (
-    !user ||
-    (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)
-  ) {
-    throw data("Only instructors and admins can access this page.", {
-      status: 403,
-    });
-  }
+  const user = await requireInstructor(request);
 
   const { courseId, moduleId } = parseParams(
     params,
@@ -64,7 +48,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Course not found.", { status: 404 });
   }
 
-  if (course.instructorId !== currentUserId && user.role !== UserRole.Admin) {
+  if (course.instructorId !== user.id && user.role !== UserRole.Admin) {
     throw data("You can only edit your own courses.", { status: 403 });
   }
 
@@ -77,21 +61,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 }
 
 export async function action({ params, request }: Route.ActionArgs) {
-  const currentUserId = await getCurrentUserId(request);
-
-  if (!currentUserId) {
-    throw data("You must be logged in.", { status: 401 });
-  }
-
-  const user = await getUserById(currentUserId);
-  if (
-    !user ||
-    (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)
-  ) {
-    throw data("Only instructors and admins can edit modules.", {
-      status: 403,
-    });
-  }
+  const user = await requireInstructor(request, "action");
 
   const { courseId, moduleId } = parseParams(
     params,
@@ -103,7 +73,7 @@ export async function action({ params, request }: Route.ActionArgs) {
     throw data("Course not found.", { status: 404 });
   }
 
-  if (course.instructorId !== currentUserId && user.role !== UserRole.Admin) {
+  if (course.instructorId !== user.id && user.role !== UserRole.Admin) {
     throw data("You can only edit your own courses.", { status: 403 });
   }
 

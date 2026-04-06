@@ -1,4 +1,5 @@
-import { eq, and, sql, gt, lt, gte, lte, ne } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
+import { moveItemToPosition } from "~/lib/reorder";
 import { db } from "~/db";
 import { modules, lessons } from "~/db/schema";
 
@@ -133,39 +134,20 @@ export async function moveModuleToPosition(opts: { moduleId: number; newPosition
   const mod = await getModuleById(moduleId);
   if (!mod) return null;
 
-  const oldPosition = mod.position;
-  if (oldPosition === newPosition) return mod;
+  if (mod.position === newPosition) return mod;
 
-  if (newPosition > oldPosition) {
-    // Moving down: shift items between old+1 and new up by 1
-    await db.update(modules)
-      .set({ position: sql`${modules.position} - 1` })
-      .where(
-        and(
-          eq(modules.courseId, mod.courseId),
-          gt(modules.position, oldPosition),
-          lte(modules.position, newPosition)
-        )
-      );
-  } else {
-    // Moving up: shift items between new and old-1 down by 1
-    await db.update(modules)
-      .set({ position: sql`${modules.position} + 1` })
-      .where(
-        and(
-          eq(modules.courseId, mod.courseId),
-          gte(modules.position, newPosition),
-          lt(modules.position, oldPosition)
-        )
-      );
-  }
+  await moveItemToPosition({
+    table: modules,
+    idColumn: modules.id,
+    positionColumn: modules.position,
+    parentColumn: modules.courseId,
+    itemId: moduleId,
+    parentId: mod.courseId,
+    oldPosition: mod.position,
+    newPosition,
+  });
 
-  const [row] = await db
-    .update(modules)
-    .set({ position: newPosition })
-    .where(eq(modules.id, moduleId))
-    .returning();
-  return row;
+  return getModuleById(moduleId);
 }
 
 export async function swapModulePositions(opts: { moduleIdA: number; moduleIdB: number }) {

@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
-import { Link, redirect, useFetcher } from "react-router";
+import { Link, useFetcher } from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
 import type { Route } from "./+types/instructor.new";
 import { createCourse, getCourseBySlug } from "~/services/courseService";
 import { getAllCategories, slugify as generateSlug } from "~/services/categoryService";
-import { getCurrentUserId } from "~/lib/session";
-import { getUserById } from "~/services/userService";
+import { requireRole } from "~/lib/session";
 import { parseFormData } from "~/lib/validation";
 import { UserRole } from "~/db/schema";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
@@ -22,7 +21,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
-import { data, isRouteErrorResponse } from "react-router";
+import { data, isRouteErrorResponse, redirect } from "react-router";
 
 const newCourseSchema = z.object({
   title: z.string().trim().min(1, "Title is required."),
@@ -39,19 +38,7 @@ export function meta() {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const currentUserId = await getCurrentUserId(request);
-
-  if (!currentUserId) {
-    throw redirect("/login");
-  }
-
-  const user = await getUserById(currentUserId);
-
-  if (!user || user.role !== UserRole.Instructor) {
-    throw data("Only instructors can create courses.", {
-      status: 403,
-    });
-  }
+  await requireRole(request, UserRole.Instructor);
 
   const categories = await getAllCategories();
 
@@ -59,17 +46,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const currentUserId = await getCurrentUserId(request);
-
-  if (!currentUserId) {
-    throw data("You must be logged in to create a course.", { status: 401 });
-  }
-
-  const user = await getUserById(currentUserId);
-
-  if (!user || user.role !== UserRole.Instructor) {
-    throw data("Only instructors can create courses.", { status: 403 });
-  }
+  const user = await requireRole(request, UserRole.Instructor, "action");
 
   const formData = await request.formData();
   const parsed = parseFormData(formData, newCourseSchema);
@@ -94,7 +71,7 @@ export async function action({ request }: Route.ActionArgs) {
     title,
     slug,
     description,
-    instructorId: currentUserId,
+    instructorId: user.id,
     categoryId: parseInt(categoryId, 10),
     coverImageUrl: coverImageUrl || null,
   });

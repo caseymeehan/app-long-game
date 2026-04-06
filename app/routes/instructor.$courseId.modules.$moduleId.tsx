@@ -2,8 +2,7 @@ import { Link } from "react-router";
 import type { Route } from "./+types/instructor.$courseId.modules.$moduleId";
 import { getCourseById, getCourseWithDetails } from "~/services/courseService";
 import { getModuleWithLessons } from "~/services/moduleService";
-import { getCurrentUserId } from "~/lib/session";
-import { getUserById } from "~/services/userService";
+import { requireInstructor } from "~/lib/session";
 import { UserRole } from "~/db/schema";
 import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
@@ -19,7 +18,7 @@ import {
   FileText,
   Video,
 } from "lucide-react";
-import { data, isRouteErrorResponse, redirect } from "react-router";
+import { data, isRouteErrorResponse } from "react-router";
 import { formatDuration } from "~/lib/utils";
 import { z } from "zod";
 
@@ -35,22 +34,7 @@ export function meta({ data: loaderData }: Route.MetaArgs) {
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
-  const currentUserId = await getCurrentUserId(request);
-
-  if (!currentUserId) {
-    throw redirect("/login");
-  }
-
-  const user = await getUserById(currentUserId);
-
-  if (
-    !user ||
-    (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)
-  ) {
-    throw data("Only instructors and admins can access this page.", {
-      status: 403,
-    });
-  }
+  const user = await requireInstructor(request);
 
   const parsed = paramsSchema.safeParse(params);
   if (!parsed.success) {
@@ -64,7 +48,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Course not found.", { status: 404 });
   }
 
-  if (course.instructorId !== currentUserId && user.role !== UserRole.Admin) {
+  if (course.instructorId !== user.id && user.role !== UserRole.Admin) {
     throw data("You can only view your own courses.", { status: 403 });
   }
 

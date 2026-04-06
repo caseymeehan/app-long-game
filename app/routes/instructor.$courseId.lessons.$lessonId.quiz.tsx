@@ -15,8 +15,7 @@ import {
   createOption,
   deleteQuestion,
 } from "~/services/quizService";
-import { getCurrentUserId } from "~/lib/session";
-import { getUserById } from "~/services/userService";
+import { requireInstructor } from "~/lib/session";
 import { UserRole, QuestionType } from "~/db/schema";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
@@ -48,7 +47,7 @@ import {
   Draggable,
   type DropResult,
 } from "@hello-pangea/dnd";
-import { data, isRouteErrorResponse, redirect } from "react-router";
+import { data, isRouteErrorResponse } from "react-router";
 import { z } from "zod";
 import { parseFormData, parseParams } from "~/lib/validation";
 
@@ -128,16 +127,7 @@ export function meta({ data: loaderData }: Route.MetaArgs) {
 // ─── Loader ───
 
 export async function loader({ params, request }: Route.LoaderArgs) {
-  const currentUserId = await getCurrentUserId(request);
-
-  if (!currentUserId) {
-    throw redirect("/login");
-  }
-
-  const user = await getUserById(currentUserId);
-  if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
-    throw data("Only instructors and admins can access this page.", { status: 403 });
-  }
+  const user = await requireInstructor(request);
 
   const courseId = parseInt(params.courseId, 10);
   if (isNaN(courseId)) {
@@ -149,7 +139,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Course not found.", { status: 404 });
   }
 
-  if (course.instructorId !== currentUserId && user.role !== UserRole.Admin) {
+  if (course.instructorId !== user.id && user.role !== UserRole.Admin) {
     throw data("You can only edit your own courses.", { status: 403 });
   }
 
@@ -180,21 +170,12 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 // ─── Action ───
 
 export async function action({ params, request }: Route.ActionArgs) {
-  const currentUserId = await getCurrentUserId(request);
-
-  if (!currentUserId) {
-    throw data("You must be logged in.", { status: 401 });
-  }
-
-  const user = await getUserById(currentUserId);
-  if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
-    throw data("Only instructors and admins can manage quizzes.", { status: 403 });
-  }
+  const user = await requireInstructor(request, "action");
 
   const { courseId, lessonId } = parseParams(params, quizParamsSchema);
 
   const course = await getCourseById(courseId);
-  if (!course || (course.instructorId !== currentUserId && user.role !== UserRole.Admin)) {
+  if (!course || (course.instructorId !== user.id && user.role !== UserRole.Admin)) {
     throw data("Course not found or not yours.", { status: 403 });
   }
 

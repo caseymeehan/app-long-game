@@ -1,4 +1,5 @@
 import { eq, and, sql, desc } from "drizzle-orm";
+import { moveItemToPosition } from "~/lib/reorder";
 import { db } from "~/db";
 import {
   quizzes,
@@ -191,37 +192,20 @@ export async function moveQuestionToPosition(opts: {
   const question = await getQuestionById(questionId);
   if (!question) return null;
 
-  const oldPosition = question.position;
-  if (oldPosition === newPosition) return question;
+  if (question.position === newPosition) return question;
 
-  if (newPosition > oldPosition) {
-    await db.update(quizQuestions)
-      .set({ position: sql`${quizQuestions.position} - 1` })
-      .where(
-        and(
-          eq(quizQuestions.quizId, question.quizId),
-          sql`${quizQuestions.position} > ${oldPosition}`,
-          sql`${quizQuestions.position} <= ${newPosition}`
-        )
-      );
-  } else {
-    await db.update(quizQuestions)
-      .set({ position: sql`${quizQuestions.position} + 1` })
-      .where(
-        and(
-          eq(quizQuestions.quizId, question.quizId),
-          sql`${quizQuestions.position} >= ${newPosition}`,
-          sql`${quizQuestions.position} < ${oldPosition}`
-        )
-      );
-  }
+  await moveItemToPosition({
+    table: quizQuestions,
+    idColumn: quizQuestions.id,
+    positionColumn: quizQuestions.position,
+    parentColumn: quizQuestions.quizId,
+    itemId: questionId,
+    parentId: question.quizId,
+    oldPosition: question.position,
+    newPosition,
+  });
 
-  const [row] = await db
-    .update(quizQuestions)
-    .set({ position: newPosition })
-    .where(eq(quizQuestions.id, questionId))
-    .returning();
-  return row;
+  return getQuestionById(questionId);
 }
 
 export async function reorderQuestions(quizId: number, questionIds: number[]) {
