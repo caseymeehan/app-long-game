@@ -64,7 +64,7 @@ export async function getWatchEventCount(userId: number, lessonId: number) {
       )
     );
 
-  return result?.count ?? 0;
+  return Number(result?.count ?? 0);
 }
 
 export async function getMaxWatchPosition(userId: number, lessonId: number) {
@@ -122,7 +122,7 @@ export async function getUserWatchHistory(userId: number) {
   return db
     .select({
       lessonId: videoWatchEvents.lessonId,
-      eventCount: sql<number>`count(*)`,
+      eventCount: sql<number>`count(*)::int`,
       lastPosition: sql<number>`max(${videoWatchEvents.positionSeconds})`,
       lastWatched: sql<string>`max(${videoWatchEvents.createdAt})`,
     })

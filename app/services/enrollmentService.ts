@@ -37,7 +37,7 @@ export async function getEnrollmentCountForCourse(courseId: number) {
     .from(enrollments)
     .where(eq(enrollments.courseId, courseId));
 
-  return result?.count ?? 0;
+  return Number(result?.count ?? 0);
 }
 
 export async function findEnrollment(userId: number, courseId: number) {

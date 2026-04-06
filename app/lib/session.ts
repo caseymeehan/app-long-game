@@ -10,7 +10,7 @@ const sessionStorage = createCookieSessionStorage({
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secrets: [process.env.SESSION_SECRET || "long-game-dev-secret"],
+    secrets: [process.env.SESSION_SECRET ?? (() => { throw new Error("SESSION_SECRET env var is required"); })()],
   },
 });
 

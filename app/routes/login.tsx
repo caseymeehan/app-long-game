@@ -45,7 +45,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     const url = new URL(request.url);
     const redirectTo = url.searchParams.get("redirectTo");
     const destination =
-      redirectTo && redirectTo.startsWith("/") ? redirectTo : "/";
+      redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : "/";
     throw redirect(destination);
   }
   return {};

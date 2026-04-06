@@ -321,7 +321,12 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "reorder-modules") {
-    const moduleIds: number[] = JSON.parse(parsed.data.moduleIds);
+    let moduleIds: number[];
+    try {
+      moduleIds = JSON.parse(parsed.data.moduleIds);
+    } catch {
+      return data({ error: "Invalid module order data." }, { status: 400 });
+    }
     await reorderModules(courseId, moduleIds);
     return { success: true, field: "module-reorder" };
   }
@@ -332,7 +337,12 @@ export async function action({ params, request }: Route.ActionArgs) {
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
     }
-    const lessonIds: number[] = JSON.parse(lessonIdsJson);
+    let lessonIds: number[];
+    try {
+      lessonIds = JSON.parse(lessonIdsJson);
+    } catch {
+      return data({ error: "Invalid lesson order data." }, { status: 400 });
+    }
     await reorderLessons(moduleId, lessonIds);
     return { success: true, field: "lesson-reorder" };
   }

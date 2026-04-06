@@ -120,7 +120,7 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
   const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${process.env.SUPABASE_URL ? "https://app.long-game.ai" : "http://localhost:3000"}/auth/callback`,
+      emailRedirectTo: `${process.env.APP_URL || "http://localhost:3000"}/auth/callback`,
     },
   });
 
@@ -158,9 +158,12 @@ async function handleOrderRefund(params: URLSearchParams, courseId: number) {
       try {
         await unenrollUser(appUser.id, courseId);
         console.log(`[thrivecart-webhook] Unenrolled user ${appUser.id} from course ${courseId}`);
-      } catch {
-        // User may not be enrolled — that's fine
-        console.log(`[thrivecart-webhook] User ${appUser.id} was not enrolled, nothing to revoke`);
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("not enrolled")) {
+          console.log(`[thrivecart-webhook] User ${appUser.id} was not enrolled, nothing to revoke`);
+        } else {
+          console.error(`[thrivecart-webhook] Failed to unenroll user ${appUser.id}:`, err);
+        }
       }
     }
   }

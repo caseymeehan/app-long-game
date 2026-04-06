@@ -23,7 +23,7 @@ export async function getLessonCount(moduleId: number) {
     .select({ count: sql<number>`count(*)` })
     .from(lessons)
     .where(eq(lessons.moduleId, moduleId));
-  return result?.count ?? 0;
+  return Number(result?.count ?? 0);
 }
 
 export async function createLesson(opts: {
@@ -43,7 +43,7 @@ export async function createLesson(opts: {
       .select({ max: sql<number>`coalesce(max(${lessons.position}), 0)` })
       .from(lessons)
       .where(eq(lessons.moduleId, moduleId));
-    pos = maxResult!.max + 1;
+    pos = (maxResult?.max ?? 0) + 1;
   }
 
   const [row] = await db

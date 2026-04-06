@@ -191,7 +191,7 @@ export async function calculateProgress(opts: {
       )
     );
 
-  return Math.round(((completedCount?.count ?? 0) / lessonIds.length) * 100);
+  return Math.round((Number(completedCount?.count ?? 0) / lessonIds.length) * 100);
 }
 
 export async function getCompletedLessonCount(userId: number, courseId: number) {
@@ -209,7 +209,7 @@ export async function getCompletedLessonCount(userId: number, courseId: number) 
       )
     );
 
-  return result?.count ?? 0;
+  return Number(result?.count ?? 0);
 }
 
 export async function getTotalLessonCount(courseId: number) {

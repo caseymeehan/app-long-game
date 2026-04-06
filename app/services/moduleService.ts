@@ -44,7 +44,7 @@ export async function createModule(
       .select({ max: sql<number>`coalesce(max(${modules.position}), 0)` })
       .from(modules)
       .where(eq(modules.courseId, courseId));
-    pos = maxResult!.max + 1;
+    pos = (maxResult?.max ?? 0) + 1;
   }
 
   const [row] = await db
@@ -89,7 +89,7 @@ export async function getModuleCount(courseId: number) {
     .select({ count: sql<number>`count(*)` })
     .from(modules)
     .where(eq(modules.courseId, courseId));
-  return result?.count ?? 0;
+  return Number(result?.count ?? 0);
 }
 
 // ─── Locking ───

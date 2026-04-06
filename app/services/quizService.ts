@@ -121,7 +121,7 @@ export async function getQuestionCount(quizId: number) {
     .select({ count: sql<number>`count(*)` })
     .from(quizQuestions)
     .where(eq(quizQuestions.quizId, quizId));
-  return result?.count ?? 0;
+  return Number(result?.count ?? 0);
 }
 
 export async function createQuestion(opts: {
@@ -141,7 +141,7 @@ export async function createQuestion(opts: {
       })
       .from(quizQuestions)
       .where(eq(quizQuestions.quizId, quizId));
-    pos = maxResult!.max + 1;
+    pos = (maxResult?.max ?? 0) + 1;
   }
 
   const [row] = await db
@@ -312,7 +312,7 @@ export async function getAttemptCountForQuiz(quizId: number) {
     .select({ count: sql<number>`count(*)` })
     .from(quizAttempts)
     .where(eq(quizAttempts.quizId, quizId));
-  return result?.count ?? 0;
+  return Number(result?.count ?? 0);
 }
 
 export async function getBestAttempt(userId: number, quizId: number) {

@@ -43,7 +43,7 @@ export async function getAllCategoriesWithCourseCounts() {
       id: categories.id,
       name: categories.name,
       slug: categories.slug,
-      courseCount: sql<number>`count(${courses.id})`,
+      courseCount: sql<number>`count(${courses.id})::int`,
     })
     .from(categories)
     .leftJoin(courses, eq(categories.id, courses.categoryId))
@@ -98,7 +98,7 @@ export async function deleteCategory(id: number) {
     .from(courses)
     .where(eq(courses.categoryId, id));
 
-  const count = courseCount?.count ?? 0;
+  const count = Number(courseCount?.count ?? 0);
   if (count > 0) {
     throw new Error(
       `Cannot delete: ${count} course${count === 1 ? "" : "s"} use this category.`

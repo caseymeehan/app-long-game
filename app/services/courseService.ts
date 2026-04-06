@@ -177,7 +177,7 @@ export async function getLessonCountForCourse(courseId: number) {
     .from(lessons)
     .where(or(...courseModules.map((m) => eq(lessons.moduleId, m.id)))!);
 
-  return count?.count ?? 0;
+  return Number(count?.count ?? 0);
 }
 
 export async function createCourse(opts: {
