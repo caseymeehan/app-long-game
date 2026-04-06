@@ -9,6 +9,18 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+
+export const headers: Route.HeadersFunction = () => ({
+  "Content-Security-Policy": [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://www.youtube.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https:",
+    "frame-src https://www.youtube.com",
+    "connect-src 'self' https://*.supabase.co",
+  ].join("; "),
+});
 import "./app.css";
 
 const darkModeScript = `
