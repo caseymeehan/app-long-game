@@ -147,15 +147,15 @@ export async function action({ params, request }: Route.ActionArgs) {
     if (await isUserEnrolled(currentUserId, course.id)) {
       throw redirect(`/courses/${slug}`);
     }
-    await createPurchase(currentUserId, course.id, pppPrice, country);
-    await enrollUser(currentUserId, course.id, false, false);
+    await createPurchase({ userId: currentUserId, courseId: course.id, pricePaid: pppPrice, country });
+    await enrollUser({ userId: currentUserId, courseId: course.id, sendEmail: false, skipValidation: false });
     throw redirect(`/courses/${slug}/welcome`);
   }
 
   // Team purchase — user does NOT get enrolled themselves
   const { quantity } = parsed.data;
   const totalPrice = pppPrice * quantity;
-  await createTeamPurchase(currentUserId, course.id, totalPrice, country, quantity);
+  await createTeamPurchase({ userId: currentUserId, courseId: course.id, pricePaid: totalPrice, country, quantity });
   throw redirect(`/team`);
 }
 

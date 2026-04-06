@@ -91,7 +91,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   // Build student data with progress and quiz scores
   const students = await Promise.all(enrolledStudents.map(async (enrollment) => {
     const studentUser = await getUserById(enrollment.userId);
-    const progress = await calculateProgress(enrollment.userId, courseId, false, false);
+    const progress = await calculateProgress({ userId: enrollment.userId, courseId, includeQuizzes: false, weightByDuration: false });
 
     // Get best quiz attempt for each quiz in this course
     const quizScores = await Promise.all(lessonQuizzes.map(async (lq) => {

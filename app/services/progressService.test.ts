@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createTestDb, seedBaseData } from "~/test/setup";
+import { createTestDb, cleanDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 
 let testDb: ReturnType<typeof createTestDb>;
@@ -62,6 +62,7 @@ async function createModuleWithLessons(
 describe("progressService", () => {
   beforeEach(async () => {
     testDb = createTestDb();
+    await cleanDb(testDb);
     base = await seedBaseData(testDb);
   });
 
@@ -243,14 +244,14 @@ describe("progressService", () => {
         })
         .returning();
 
-      const progress = await calculateProgress(base.user.id, emptyCourse.id, false, false);
+      const progress = await calculateProgress({ userId: base.user.id, courseId: emptyCourse.id, includeQuizzes: false, weightByDuration: false });
       expect(progress).toBe(0);
     });
 
     it("returns 0 when no lessons are completed", async () => {
       await createModuleWithLessons(base.course.id, "Module 1", 1, 4);
 
-      const progress = await calculateProgress(base.user.id, base.course.id, false, false);
+      const progress = await calculateProgress({ userId: base.user.id, courseId: base.course.id, includeQuizzes: false, weightByDuration: false });
       expect(progress).toBe(0);
     });
 
@@ -261,7 +262,7 @@ describe("progressService", () => {
         await markLessonComplete(base.user.id, lesson.id);
       }
 
-      const progress = await calculateProgress(base.user.id, base.course.id, false, false);
+      const progress = await calculateProgress({ userId: base.user.id, courseId: base.course.id, includeQuizzes: false, weightByDuration: false });
       expect(progress).toBe(100);
     });
 
@@ -271,7 +272,7 @@ describe("progressService", () => {
       await markLessonComplete(base.user.id, lessons[0].id);
       await markLessonComplete(base.user.id, lessons[1].id);
 
-      const progress = await calculateProgress(base.user.id, base.course.id, false, false);
+      const progress = await calculateProgress({ userId: base.user.id, courseId: base.course.id, includeQuizzes: false, weightByDuration: false });
       expect(progress).toBe(50); // 2/4 = 50%
     });
 
@@ -281,7 +282,7 @@ describe("progressService", () => {
       await markLessonComplete(base.user.id, lessons[0].id);
       await markLessonInProgress(base.user.id, lessons[1].id);
 
-      const progress = await calculateProgress(base.user.id, base.course.id, false, false);
+      const progress = await calculateProgress({ userId: base.user.id, courseId: base.course.id, includeQuizzes: false, weightByDuration: false });
       expect(progress).toBe(25); // 1/4 = 25%
     });
 
@@ -292,7 +293,7 @@ describe("progressService", () => {
       await markLessonComplete(base.user.id, m1.lessons[0].id);
       await markLessonComplete(base.user.id, m2.lessons[0].id);
 
-      const progress = await calculateProgress(base.user.id, base.course.id, false, false);
+      const progress = await calculateProgress({ userId: base.user.id, courseId: base.course.id, includeQuizzes: false, weightByDuration: false });
       expect(progress).toBe(50); // 2/4 = 50%
     });
 
@@ -301,7 +302,7 @@ describe("progressService", () => {
 
       await markLessonComplete(base.user.id, lessons[0].id);
 
-      const progress = await calculateProgress(base.user.id, base.course.id, false, false);
+      const progress = await calculateProgress({ userId: base.user.id, courseId: base.course.id, includeQuizzes: false, weightByDuration: false });
       expect(progress).toBe(33); // 1/3 = 33.33... → 33
     });
   });
@@ -326,7 +327,7 @@ describe("progressService", () => {
       // Complete only the short lesson (10 out of 40 total minutes)
       await markLessonComplete(base.user.id, lesson1.id);
 
-      const progress = await calculateProgress(base.user.id, base.course.id, false, true);
+      const progress = await calculateProgress({ userId: base.user.id, courseId: base.course.id, includeQuizzes: false, weightByDuration: true });
       expect(progress).toBe(25); // 10/40 = 25%
     });
 
@@ -348,7 +349,7 @@ describe("progressService", () => {
       // Complete only the timed lesson (9 out of 10 total minutes)
       await markLessonComplete(base.user.id, lesson1.id);
 
-      const progress = await calculateProgress(base.user.id, base.course.id, false, true);
+      const progress = await calculateProgress({ userId: base.user.id, courseId: base.course.id, includeQuizzes: false, weightByDuration: true });
       expect(progress).toBe(90); // 9/10 = 90%
     });
 
@@ -365,7 +366,7 @@ describe("progressService", () => {
         })
         .returning();
 
-      const progress = await calculateProgress(base.user.id, emptyCourse.id, false, true);
+      const progress = await calculateProgress({ userId: base.user.id, courseId: emptyCourse.id, includeQuizzes: false, weightByDuration: true });
       expect(progress).toBe(0);
     });
   });

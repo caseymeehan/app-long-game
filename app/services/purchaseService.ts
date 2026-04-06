@@ -6,16 +6,16 @@ import { generateCoupons } from "./couponService";
 
 // ─── Purchase Service ───
 // Handles purchase records (transaction log separate from enrollments).
-// Uses positional parameters (project convention).
 
-export async function createPurchase(
-  userId: number,
-  courseId: number,
-  pricePaid: number,
-  country: string | null,
-  thrivecartOrderId?: string,
-  affiliateId?: string
-) {
+export async function createPurchase(opts: {
+  userId: number;
+  courseId: number;
+  pricePaid: number;
+  country: string | null;
+  thrivecartOrderId?: string;
+  affiliateId?: string;
+}) {
+  const { userId, courseId, pricePaid, country, thrivecartOrderId, affiliateId } = opts;
   const [row] = await db
     .insert(purchases)
     .values({ userId, courseId, pricePaid, country, thrivecartOrderId, affiliateId })
@@ -61,14 +61,15 @@ export async function markPurchaseRefunded(purchaseId: number) {
 
 // ─── Team Purchase ───
 
-export async function createTeamPurchase(
-  userId: number,
-  courseId: number,
-  pricePaid: number,
-  country: string | null,
-  quantity: number
-) {
-  const purchase = await createPurchase(userId, courseId, pricePaid, country);
+export async function createTeamPurchase(opts: {
+  userId: number;
+  courseId: number;
+  pricePaid: number;
+  country: string | null;
+  quantity: number;
+}) {
+  const { userId, courseId, pricePaid, country, quantity } = opts;
+  const purchase = await createPurchase({ userId, courseId, pricePaid, country });
   const team = await getOrCreateTeamForUser(userId);
   const coupons = await generateCoupons(team.id, courseId, purchase.id, quantity);
   return { purchase, team, coupons };

@@ -11,7 +11,6 @@ import {
 
 // ─── Quiz Service ───
 // Handles quiz CRUD, question/option management, and attempt recording.
-// Uses positional parameters (project convention).
 
 // ─── Quiz CRUD ───
 
@@ -125,12 +124,13 @@ export async function getQuestionCount(quizId: number) {
   return result?.count ?? 0;
 }
 
-export async function createQuestion(
-  quizId: number,
-  questionText: string,
-  questionType: QuestionType,
-  position: number | null
-) {
+export async function createQuestion(opts: {
+  quizId: number;
+  questionText: string;
+  questionType: QuestionType;
+  position: number | null;
+}) {
+  const { quizId, questionText, questionType, position } = opts;
   let pos: number;
   if (position !== null) {
     pos = position;
@@ -183,10 +183,11 @@ export async function deleteQuestion(id: number) {
 
 // ─── Question Reordering ───
 
-export async function moveQuestionToPosition(
-  questionId: number,
-  newPosition: number
-) {
+export async function moveQuestionToPosition(opts: {
+  questionId: number;
+  newPosition: number;
+}) {
+  const { questionId, newPosition } = opts;
   const question = await getQuestionById(questionId);
   if (!question) return null;
 
@@ -338,12 +339,13 @@ export async function getLatestAttempt(userId: number, quizId: number) {
   return row;
 }
 
-export async function recordAttempt(
-  userId: number,
-  quizId: number,
-  score: number,
-  passed: boolean
-) {
+export async function recordAttempt(opts: {
+  userId: number;
+  quizId: number;
+  score: number;
+  passed: boolean;
+}) {
+  const { userId, quizId, score, passed } = opts;
   const [row] = await db
     .insert(quizAttempts)
     .values({ userId, quizId, score, passed })
@@ -351,11 +353,12 @@ export async function recordAttempt(
   return row;
 }
 
-export async function recordAnswer(
-  attemptId: number,
-  questionId: number,
-  selectedOptionId: number
-) {
+export async function recordAnswer(opts: {
+  attemptId: number;
+  questionId: number;
+  selectedOptionId: number;
+}) {
+  const { attemptId, questionId, selectedOptionId } = opts;
   const [row] = await db
     .insert(quizAnswers)
     .values({ attemptId, questionId, selectedOptionId })

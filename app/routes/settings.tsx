@@ -72,7 +72,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   const { name, bio } = parsed.data;
 
-  await updateUser(currentUser.id, name, currentUser.email, bio || null);
+  await updateUser({ id: currentUser.id, name, email: currentUser.email, bio: bio || null });
   return { success: true };
 }
 

@@ -106,13 +106,13 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
 
   // 3. Create purchase record
   const pricePaid = parseInt(totalStr, 10) || 0;
-  await createPurchase(appUser.id, courseId, pricePaid, null, orderId, affiliateId);
+  await createPurchase({ userId: appUser.id, courseId, pricePaid, country: null, thrivecartOrderId: orderId, affiliateId });
   console.log(`[thrivecart-webhook] Created purchase for order ${orderId}`);
 
   // 4. Enroll user (skip if already enrolled)
   const existing = await findEnrollment(appUser.id, courseId);
   if (!existing) {
-    await enrollUser(appUser.id, courseId, false, true);
+    await enrollUser({ userId: appUser.id, courseId, sendEmail: false, skipValidation: true });
     console.log(`[thrivecart-webhook] Enrolled user ${appUser.id} in course ${courseId}`);
   }
 

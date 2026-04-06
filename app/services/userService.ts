@@ -4,7 +4,6 @@ import { users, UserRole } from "~/db/schema";
 
 // ─── User Service ───
 // Handles user CRUD operations and role management.
-// Uses positional parameters (project convention).
 
 export async function getAllUsers() {
   return await db.select().from(users);
@@ -24,12 +23,13 @@ export async function getUsersByRole(role: UserRole) {
   return await db.select().from(users).where(eq(users.role, role));
 }
 
-export async function createUser(
-  name: string,
-  email: string,
-  role: UserRole,
-  avatarUrl: string | null
-) {
+export async function createUser(opts: {
+  name: string;
+  email: string;
+  role: UserRole;
+  avatarUrl: string | null;
+}) {
+  const { name, email, role, avatarUrl } = opts;
   const [user] = await db
     .insert(users)
     .values({ name, email, role, avatarUrl })
@@ -37,12 +37,13 @@ export async function createUser(
   return user;
 }
 
-export async function updateUser(
-  id: number,
-  name: string,
-  email: string,
-  bio: string | null
-) {
+export async function updateUser(opts: {
+  id: number;
+  name: string;
+  email: string;
+  bio: string | null;
+}) {
+  const { id, name, email, bio } = opts;
   const [user] = await db
     .update(users)
     .set({ name, email, bio })
@@ -60,13 +61,14 @@ export async function updateUserRole(id: number, role: UserRole) {
   return user;
 }
 
-export async function createUserWithAuth(
-  name: string,
-  email: string,
-  role: UserRole,
-  supabaseAuthId: string,
-  needsPasswordSetup = false
-) {
+export async function createUserWithAuth(opts: {
+  name: string;
+  email: string;
+  role: UserRole;
+  supabaseAuthId: string;
+  needsPasswordSetup?: boolean;
+}) {
+  const { name, email, role, supabaseAuthId, needsPasswordSetup = false } = opts;
   const [user] = await db
     .insert(users)
     .values({ name, email, role, supabaseAuthId, needsPasswordSetup })

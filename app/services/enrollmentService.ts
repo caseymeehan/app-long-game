@@ -11,7 +11,6 @@ import {
 
 // ─── Enrollment Service ───
 // Handles enrollment, unenrollment, duplicate prevention, and enrollment validation.
-// Uses positional parameters (project convention).
 
 export async function getEnrollmentById(id: number) {
   const [row] = await db.select().from(enrollments).where(eq(enrollments.id, id));
@@ -55,12 +54,13 @@ export async function isUserEnrolled(userId: number, courseId: number) {
   return !!(await findEnrollment(userId, courseId));
 }
 
-export async function enrollUser(
-  userId: number,
-  courseId: number,
-  sendEmail: boolean,
-  skipValidation: boolean
-) {
+export async function enrollUser(opts: {
+  userId: number;
+  courseId: number;
+  sendEmail: boolean;
+  skipValidation: boolean;
+}) {
+  const { userId, courseId, sendEmail, skipValidation } = opts;
   if (!skipValidation) {
     // Check if already enrolled
     const existing = await findEnrollment(userId, courseId);

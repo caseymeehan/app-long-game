@@ -124,7 +124,7 @@ export async function action({ params, request }: Route.ActionArgs) {
 
   if (parsed.data.intent === "update-module-content") {
     const { content, videoUrl } = parsed.data;
-    await updateModuleContent(moduleId, content ?? null, videoUrl || null);
+    await updateModuleContent({ id: moduleId, content: content ?? null, videoUrl: videoUrl || null });
     return { success: true };
   }
 

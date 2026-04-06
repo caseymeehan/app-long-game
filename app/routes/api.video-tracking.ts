@@ -25,7 +25,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   const { lessonId, eventType, positionSeconds } = parsed.data;
 
-  await logWatchEvent(currentUserId, lessonId, eventType, positionSeconds);
+  await logWatchEvent({ userId: currentUserId, lessonId, eventType, positionSeconds });
 
   return { success: true };
 }

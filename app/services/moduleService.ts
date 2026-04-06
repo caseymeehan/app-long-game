@@ -4,7 +4,6 @@ import { modules, lessons } from "~/db/schema";
 
 // ─── Module Service ───
 // Handles module CRUD and reordering within courses.
-// Uses positional parameters (project convention).
 
 export async function getModuleById(id: number) {
   const [row] = await db.select().from(modules).where(eq(modules.id, id));
@@ -64,11 +63,12 @@ export async function updateModuleTitle(id: number, title: string) {
   return row;
 }
 
-export async function updateModuleContent(
-  id: number,
-  content: string | null,
-  videoUrl: string | null
-) {
+export async function updateModuleContent(opts: {
+  id: number;
+  content: string | null;
+  videoUrl: string | null;
+}) {
+  const { id, content, videoUrl } = opts;
   const [row] = await db
     .update(modules)
     .set({ content, videoUrl })
@@ -128,7 +128,8 @@ export async function unlockAllModules(courseId: number) {
 
 // ─── Reordering ───
 
-export async function moveModuleToPosition(moduleId: number, newPosition: number) {
+export async function moveModuleToPosition(opts: { moduleId: number; newPosition: number }) {
+  const { moduleId, newPosition } = opts;
   const mod = await getModuleById(moduleId);
   if (!mod) return null;
 
@@ -167,7 +168,8 @@ export async function moveModuleToPosition(moduleId: number, newPosition: number
   return row;
 }
 
-export async function swapModulePositions(moduleIdA: number, moduleIdB: number) {
+export async function swapModulePositions(opts: { moduleIdA: number; moduleIdB: number }) {
+  const { moduleIdA, moduleIdB } = opts;
   const modA = await getModuleById(moduleIdA);
   const modB = await getModuleById(moduleIdB);
   if (!modA || !modB) return null;

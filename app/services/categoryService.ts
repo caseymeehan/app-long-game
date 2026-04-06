@@ -4,7 +4,6 @@ import { categories, courses } from "~/db/schema";
 
 // ─── Category Service ───
 // Handles category CRUD, slug generation, and uniqueness validation.
-// Uses positional parameters (project convention).
 
 export function slugify(name: string) {
   return name

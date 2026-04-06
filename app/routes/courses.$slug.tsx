@@ -56,7 +56,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     const enrolled = await isUserEnrolled(currentUserId, course.id);
 
     if (enrolled) {
-      progress = await calculateProgress(currentUserId, course.id, false, false);
+      progress = await calculateProgress({ userId: currentUserId, courseId: course.id, includeQuizzes: false, weightByDuration: false });
 
       const progressRecords = await getLessonProgressForCourse(
         currentUserId,

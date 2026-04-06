@@ -165,11 +165,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         lastWatchPosition = await getLastWatchPosition(currentUserId, lessonId);
         const videoDurationSeconds = (lesson.durationMinutes ?? 0) * 60;
         if (videoDurationSeconds > 0) {
-          watchProgress = await calculateWatchProgress(
-            currentUserId,
+          watchProgress = await calculateWatchProgress({
+            userId: currentUserId,
             lessonId,
-            videoDurationSeconds
-          );
+            videoDurationSeconds,
+          });
         }
       }
     }

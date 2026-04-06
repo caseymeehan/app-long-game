@@ -162,7 +162,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   const students = await Promise.all(enrolledStudents.map(async (enrollment) => {
     const studentUser = await getUserById(enrollment.userId);
-    const progress = await calculateProgress(enrollment.userId, courseId, false, false);
+    const progress = await calculateProgress({ userId: enrollment.userId, courseId, includeQuizzes: false, weightByDuration: false });
 
     const quizScores = await Promise.all(lessonQuizzes.map(async (lq) => {
       const bestAttempt = await getBestAttempt(enrollment.userId, lq.quizId);
@@ -224,12 +224,12 @@ export async function action({ params, request }: Route.ActionArgs) {
   const { intent } = parsed.data;
 
   if (intent === "update-title") {
-    await updateCourse(courseId, parsed.data.title, course.description);
+    await updateCourse({ id: courseId, title: parsed.data.title, description: course.description });
     return { success: true, field: "title" };
   }
 
   if (intent === "update-description") {
-    await updateCourse(courseId, course.title, parsed.data.description);
+    await updateCourse({ id: courseId, title: course.title, description: parsed.data.description });
     return { success: true, field: "description" };
   }
 
@@ -302,7 +302,7 @@ export async function action({ params, request }: Route.ActionArgs) {
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
     }
-    await createLesson(moduleId, title, null, null, null, null);
+    await createLesson({ moduleId, title, content: null, videoUrl: null, position: null, durationMinutes: null });
     return { success: true, field: "lesson" };
   }
 
@@ -351,7 +351,7 @@ export async function action({ params, request }: Route.ActionArgs) {
     if (!targetMod || targetMod.courseId !== courseId) {
       return data({ error: "Target module not found in this course." }, { status: 404 });
     }
-    await moveLessonToModule(lessonId, targetModuleId, targetPosition);
+    await moveLessonToModule({ lessonId, targetModuleId, targetPosition });
     return { success: true, field: "lesson-move" };
   }
 

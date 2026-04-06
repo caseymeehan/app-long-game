@@ -246,12 +246,12 @@ export async function action({ params, request }: Route.ActionArgs) {
     // Create questions and options
     for (let qi = 0; qi < wizardData.questions.length; qi++) {
       const q = wizardData.questions[qi];
-      const question = await createQuestion(
-        quiz.id,
-        q.text.trim(),
-        q.type,
-        qi + 1
-      );
+      const question = await createQuestion({
+        quizId: quiz.id,
+        questionText: q.text.trim(),
+        questionType: q.type,
+        position: qi + 1,
+      });
 
       for (const opt of q.options) {
         await createOption(question.id, opt.text.trim(), opt.isCorrect);

@@ -86,7 +86,7 @@ export async function action({ request }: Route.ActionArgs) {
   if (intent === "update-user") {
     const { userId, name, email } = parsed.data;
     const user = await getUserById(userId);
-    await updateUser(userId, name, email, user?.bio ?? null);
+    await updateUser({ id: userId, name, email, bio: user?.bio ?? null });
     return { success: true };
   }
 

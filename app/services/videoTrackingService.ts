@@ -4,14 +4,14 @@ import { videoWatchEvents, lessons } from "~/db/schema";
 
 // ─── Video Tracking Service ───
 // Logs video watch events and calculates watch progress per lesson.
-// Uses positional parameters (project convention).
 
-export async function logWatchEvent(
-  userId: number,
-  lessonId: number,
-  eventType: string,
-  positionSeconds: number
-) {
+export async function logWatchEvent(opts: {
+  userId: number;
+  lessonId: number;
+  eventType: string;
+  positionSeconds: number;
+}) {
+  const { userId, lessonId, eventType, positionSeconds } = opts;
   const [row] = await db
     .insert(videoWatchEvents)
     .values({
@@ -81,11 +81,12 @@ export async function getMaxWatchPosition(userId: number, lessonId: number) {
   return result?.maxPos ?? 0;
 }
 
-export async function calculateWatchProgress(
-  userId: number,
-  lessonId: number,
-  videoDurationSeconds: number
-) {
+export async function calculateWatchProgress(opts: {
+  userId: number;
+  lessonId: number;
+  videoDurationSeconds: number;
+}) {
+  const { userId, lessonId, videoDurationSeconds } = opts;
   if (videoDurationSeconds <= 0) return 0;
 
   const maxPosition = await getMaxWatchPosition(userId, lessonId);
@@ -102,17 +103,18 @@ export async function hasUserWatchedVideo(userId: number, lessonId: number) {
   return count > 0;
 }
 
-export async function hasUserCompletedVideo(
-  userId: number,
-  lessonId: number,
-  videoDurationSeconds: number,
-  completionThreshold: number
-) {
-  const progress = await calculateWatchProgress(
+export async function hasUserCompletedVideo(opts: {
+  userId: number;
+  lessonId: number;
+  videoDurationSeconds: number;
+  completionThreshold: number;
+}) {
+  const { userId, lessonId, videoDurationSeconds, completionThreshold } = opts;
+  const progress = await calculateWatchProgress({
     userId,
     lessonId,
-    videoDurationSeconds
-  );
+    videoDurationSeconds,
+  });
   return progress >= completionThreshold;
 }
 

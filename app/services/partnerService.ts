@@ -44,12 +44,13 @@ export async function getAllPartners() {
     .orderBy(partners.createdAt);
 }
 
-export async function createPartner(
-  userId: number,
-  affiliateId: string,
-  commissionTier: string | null,
-  notes: string | null
-) {
+export async function createPartner(opts: {
+  userId: number;
+  affiliateId: string;
+  commissionTier: string | null;
+  notes: string | null;
+}) {
+  const { userId, affiliateId, commissionTier, notes } = opts;
   const [row] = await db
     .insert(partners)
     .values({ userId, affiliateId, commissionTier, notes })
@@ -57,12 +58,13 @@ export async function createPartner(
   return row;
 }
 
-export async function updatePartner(
-  id: number,
-  affiliateId: string,
-  commissionTier: string | null,
-  notes: string | null
-) {
+export async function updatePartner(opts: {
+  id: number;
+  affiliateId: string;
+  commissionTier: string | null;
+  notes: string | null;
+}) {
+  const { id, affiliateId, commissionTier, notes } = opts;
   const [row] = await db
     .update(partners)
     .set({ affiliateId, commissionTier, notes })

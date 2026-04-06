@@ -138,7 +138,7 @@ export async function action({ params, request }: Route.ActionArgs) {
       return data({ error: "Duration must be a positive number." }, { status: 400 });
     }
 
-    await updateLesson(lessonId, null, content ?? null, videoUrl || null, durationMinutes, githubRepoUrl || null);
+    await updateLesson({ id: lessonId, content: content ?? null, videoUrl: videoUrl || null, durationMinutes, githubRepoUrl: githubRepoUrl || null });
     return { success: true };
   }
 

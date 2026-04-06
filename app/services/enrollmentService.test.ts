@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createTestDb, seedBaseData } from "~/test/setup";
+import { createTestDb, cleanDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 
 let testDb: ReturnType<typeof createTestDb>;
@@ -29,12 +29,13 @@ import {
 describe("enrollmentService", () => {
   beforeEach(async () => {
     testDb = createTestDb();
+    await cleanDb(testDb);
     base = await seedBaseData(testDb);
   });
 
   describe("enrollUser", () => {
     it("enrolls a user in a course", async () => {
-      const enrollment = await enrollUser(base.user.id, base.course.id, false, false);
+      const enrollment = await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       expect(enrollment).toBeDefined();
       expect(enrollment.userId).toBe(base.user.id);
@@ -44,16 +45,16 @@ describe("enrollmentService", () => {
     });
 
     it("throws when enrolling a user who is already enrolled", async () => {
-      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       await expect(
-        enrollUser(base.user.id, base.course.id, false, false)
+        enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false })
       ).rejects.toThrowError("User is already enrolled in this course");
     });
 
     it("throws when enrolling in a non-existent course", async () => {
       await expect(
-        enrollUser(base.user.id, 9999, false, false)
+        enrollUser({ userId: base.user.id, courseId: 9999, sendEmail: false, skipValidation: false })
       ).rejects.toThrowError("Course not found");
     });
 
@@ -62,27 +63,27 @@ describe("enrollmentService", () => {
       // but the DB foreign key constraint still prevents inserting invalid references.
       // Verify it doesn't throw "Course not found" (service-level) but throws FK error instead.
       await expect(
-        enrollUser(base.user.id, 9999, false, true)
+        enrollUser({ userId: base.user.id, courseId: 9999, sendEmail: false, skipValidation: true })
       ).rejects.toThrowError(); // FK constraint, not "Course not found"
     });
 
     it("allows duplicate enrollment when skipValidation is true", async () => {
-      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       // Second enrollment with skipValidation — no "already enrolled" error
-      const second = await enrollUser(base.user.id, base.course.id, false, true);
+      const second = await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: true });
       expect(second).toBeDefined();
     });
 
     it("accepts sendEmail parameter without error", async () => {
-      const enrollment = await enrollUser(base.user.id, base.course.id, true, false);
+      const enrollment = await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: true, skipValidation: false });
       expect(enrollment).toBeDefined();
     });
   });
 
   describe("unenrollUser", () => {
     it("unenrolls a user from a course", async () => {
-      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       const result = await unenrollUser(base.user.id, base.course.id);
       expect(result).toBeDefined();
@@ -97,7 +98,7 @@ describe("enrollmentService", () => {
     });
 
     it("removes the enrollment from the database", async () => {
-      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
       await unenrollUser(base.user.id, base.course.id);
 
       expect(await isUserEnrolled(base.user.id, base.course.id)).toBe(false);
@@ -106,7 +107,7 @@ describe("enrollmentService", () => {
 
   describe("findEnrollment", () => {
     it("returns the enrollment when it exists", async () => {
-      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       const found = await findEnrollment(base.user.id, base.course.id);
       expect(found).toBeDefined();
@@ -122,7 +123,7 @@ describe("enrollmentService", () => {
 
   describe("isUserEnrolled", () => {
     it("returns true when user is enrolled", async () => {
-      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       expect(await isUserEnrolled(base.user.id, base.course.id)).toBe(true);
     });
@@ -134,7 +135,7 @@ describe("enrollmentService", () => {
 
   describe("getEnrollmentById", () => {
     it("returns enrollment by id", async () => {
-      const created = await enrollUser(base.user.id, base.course.id, false, false);
+      const created = await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       const found = await getEnrollmentById(created.id);
       expect(found).toBeDefined();
@@ -161,8 +162,8 @@ describe("enrollmentService", () => {
         })
         .returning();
 
-      await enrollUser(base.user.id, base.course.id, false, false);
-      await enrollUser(base.user.id, course2.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
+      await enrollUser({ userId: base.user.id, courseId: course2.id, sendEmail: false, skipValidation: false });
 
       const enrollmentsList = await getEnrollmentsByUser(base.user.id);
       expect(enrollmentsList).toHaveLength(2);
@@ -184,8 +185,8 @@ describe("enrollmentService", () => {
         })
         .returning();
 
-      await enrollUser(base.user.id, base.course.id, false, false);
-      await enrollUser(student2.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
+      await enrollUser({ userId: student2.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       const enrollmentsList = await getEnrollmentsByCourse(base.course.id);
       expect(enrollmentsList).toHaveLength(2);
@@ -198,7 +199,7 @@ describe("enrollmentService", () => {
 
   describe("getEnrollmentCountForCourse", () => {
     it("returns the count of enrollments", async () => {
-      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       expect(await getEnrollmentCountForCourse(base.course.id)).toBe(1);
     });
@@ -210,7 +211,7 @@ describe("enrollmentService", () => {
 
   describe("markEnrollmentComplete", () => {
     it("sets completedAt on the enrollment", async () => {
-      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       const result = await markEnrollmentComplete(base.user.id, base.course.id);
       expect(result).toBeDefined();
@@ -221,7 +222,7 @@ describe("enrollmentService", () => {
 
   describe("getUserEnrolledCourses", () => {
     it("returns enrolled courses with course details", async () => {
-      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       const courses = await getUserEnrolledCourses(base.user.id);
       expect(courses).toHaveLength(1);
@@ -237,7 +238,7 @@ describe("enrollmentService", () => {
 
   describe("getCourseEnrolledStudents", () => {
     it("returns enrolled students for a course", async () => {
-      await enrollUser(base.user.id, base.course.id, false, false);
+      await enrollUser({ userId: base.user.id, courseId: base.course.id, sendEmail: false, skipValidation: false });
 
       const students = await getCourseEnrolledStudents(base.course.id);
       expect(students).toHaveLength(1);

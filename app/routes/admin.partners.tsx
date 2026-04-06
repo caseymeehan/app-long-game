@@ -123,7 +123,7 @@ export async function action({ request }: Route.ActionArgs) {
     if (existing) {
       return data({ error: "This user is already a partner." }, { status: 400 });
     }
-    await createPartner(userId, affiliateId, commissionTier ?? null, notes ?? null);
+    await createPartner({ userId, affiliateId, commissionTier: commissionTier ?? null, notes: notes ?? null });
     return { success: true };
   }
 
@@ -138,7 +138,7 @@ export async function action({ request }: Route.ActionArgs) {
         return data({ error: "This email is already a partner." }, { status: 400 });
       }
       // User exists but isn't a partner — link them
-      await createPartner(existingAppUser.id, affiliateId, commissionTier ?? null, notes ?? null);
+      await createPartner({ userId: existingAppUser.id, affiliateId, commissionTier: commissionTier ?? null, notes: notes ?? null });
       return { success: true };
     }
 
@@ -161,7 +161,7 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     // Create partner record
-    await createPartner(appUser.id, affiliateId, commissionTier ?? null, notes ?? null);
+    await createPartner({ userId: appUser.id, affiliateId, commissionTier: commissionTier ?? null, notes: notes ?? null });
 
     // Send magic link for initial login
     const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
@@ -180,7 +180,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (intent === "update-partner") {
     const { partnerId, affiliateId, commissionTier, notes } = parsed.data;
-    await updatePartner(partnerId, affiliateId, commissionTier ?? null, notes ?? null);
+    await updatePartner({ id: partnerId, affiliateId, commissionTier: commissionTier ?? null, notes: notes ?? null });
     return { success: true };
   }
 

@@ -11,7 +11,6 @@ import {
 
 // ─── Progress Service ───
 // Handles lesson completion tracking and course progress calculation.
-// Uses positional parameters (project convention).
 
 export async function getLessonProgress(userId: number, lessonId: number) {
   const [row] = await db
@@ -134,12 +133,13 @@ async function getCourseLessonIds(courseId: number): Promise<number[]> {
   return courseLessons.map((l) => l.id);
 }
 
-export async function calculateProgress(
-  userId: number,
-  courseId: number,
-  includeQuizzes: boolean,
-  weightByDuration: boolean
-) {
+export async function calculateProgress(opts: {
+  userId: number;
+  courseId: number;
+  includeQuizzes: boolean;
+  weightByDuration: boolean;
+}) {
+  const { userId, courseId, includeQuizzes, weightByDuration } = opts;
   const lessonIds = await getCourseLessonIds(courseId);
 
   if (lessonIds.length === 0) return 0;

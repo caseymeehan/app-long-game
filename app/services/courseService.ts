@@ -11,7 +11,6 @@ import {
 
 // ─── Course Service ───
 // Handles course CRUD, search, category filtering, and status transitions.
-// Uses positional parameters (project convention).
 
 export async function getAllCourses() {
   return await db.select().from(courses);
@@ -49,14 +48,15 @@ export async function getPublishedCourses() {
   return await getCoursesByStatus(CourseStatus.Published);
 }
 
-export async function buildCourseQuery(
-  search: string | null,
-  category: string | null,
-  status: CourseStatus | null,
-  sortBy: string | null,
-  limit: number,
-  offset: number
-) {
+export async function buildCourseQuery(opts: {
+  search: string | null;
+  category: string | null;
+  status: CourseStatus | null;
+  sortBy: string | null;
+  limit: number;
+  offset: number;
+}) {
+  const { search, category, status, sortBy, limit, offset } = opts;
   const conditions = [];
 
   if (status) {
@@ -180,14 +180,15 @@ export async function getLessonCountForCourse(courseId: number) {
   return count?.count ?? 0;
 }
 
-export async function createCourse(
-  title: string,
-  slug: string,
-  description: string,
-  instructorId: number,
-  categoryId: number,
-  coverImageUrl: string | null
-) {
+export async function createCourse(opts: {
+  title: string;
+  slug: string;
+  description: string;
+  instructorId: number;
+  categoryId: number;
+  coverImageUrl: string | null;
+}) {
+  const { title, slug, description, instructorId, categoryId, coverImageUrl } = opts;
   const [course] = await db
     .insert(courses)
     .values({
@@ -203,7 +204,8 @@ export async function createCourse(
   return course;
 }
 
-export async function updateCourse(id: number, title: string, description: string) {
+export async function updateCourse(opts: { id: number; title: string; description: string }) {
+  const { id, title, description } = opts;
   const [course] = await db
     .update(courses)
     .set({ title, description, updatedAt: new Date().toISOString() })

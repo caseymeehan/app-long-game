@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createTestDb, seedBaseData } from "~/test/setup";
+import { createTestDb, cleanDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 
 let testDb: ReturnType<typeof createTestDb>;
@@ -24,6 +24,7 @@ import {
 describe("teamService", () => {
   beforeEach(async () => {
     testDb = createTestDb();
+    await cleanDb(testDb);
     base = await seedBaseData(testDb);
   });
 

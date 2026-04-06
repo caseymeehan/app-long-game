@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { createTestDb, seedBaseData } from "~/test/setup";
+import { createTestDb, cleanDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 
 let testDb: ReturnType<typeof createTestDb>;
@@ -23,6 +23,7 @@ import {
 describe("purchaseService", () => {
   beforeEach(async () => {
     testDb = createTestDb();
+    await cleanDb(testDb);
     base = await seedBaseData(testDb);
   });
 
@@ -30,7 +31,7 @@ describe("purchaseService", () => {
 
   describe("createPurchase", () => {
     it("creates a purchase record", async () => {
-      const purchase = await createPurchase(base.user.id, base.course.id, 4999, "US");
+      const purchase = await createPurchase({ userId: base.user.id, courseId: base.course.id, pricePaid: 4999, country: "US" });
       expect(purchase).toBeDefined();
       expect(purchase.userId).toBe(base.user.id);
       expect(purchase.courseId).toBe(base.course.id);
@@ -39,12 +40,12 @@ describe("purchaseService", () => {
     });
 
     it("creates a purchase with null country", async () => {
-      const purchase = await createPurchase(base.user.id, base.course.id, 4999, null);
+      const purchase = await createPurchase({ userId: base.user.id, courseId: base.course.id, pricePaid: 4999, country: null });
       expect(purchase.country).toBeNull();
     });
 
     it("stores discounted price correctly", async () => {
-      const purchase = await createPurchase(base.user.id, base.course.id, 2500, "IN");
+      const purchase = await createPurchase({ userId: base.user.id, courseId: base.course.id, pricePaid: 2500, country: "IN" });
       expect(purchase.pricePaid).toBe(2500);
       expect(purchase.country).toBe("IN");
     });
@@ -54,7 +55,7 @@ describe("purchaseService", () => {
 
   describe("findPurchase", () => {
     it("returns purchase for user+course", async () => {
-      await createPurchase(base.user.id, base.course.id, 4999, "US");
+      await createPurchase({ userId: base.user.id, courseId: base.course.id, pricePaid: 4999, country: "US" });
       const found = await findPurchase(base.user.id, base.course.id);
       expect(found).toBeDefined();
       expect(found!.pricePaid).toBe(4999);
@@ -69,7 +70,7 @@ describe("purchaseService", () => {
 
   describe("getPurchasesByUser", () => {
     it("returns all purchases for a user", async () => {
-      await createPurchase(base.user.id, base.course.id, 4999, "US");
+      await createPurchase({ userId: base.user.id, courseId: base.course.id, pricePaid: 4999, country: "US" });
       const purchases = await getPurchasesByUser(base.user.id);
       expect(purchases).toHaveLength(1);
     });
@@ -83,8 +84,8 @@ describe("purchaseService", () => {
 
   describe("getPurchasesByCourse", () => {
     it("returns all purchases for a course", async () => {
-      await createPurchase(base.user.id, base.course.id, 4999, "US");
-      await createPurchase(base.instructor.id, base.course.id, 4999, "GB");
+      await createPurchase({ userId: base.user.id, courseId: base.course.id, pricePaid: 4999, country: "US" });
+      await createPurchase({ userId: base.instructor.id, courseId: base.course.id, pricePaid: 4999, country: "GB" });
       const purchases = await getPurchasesByCourse(base.course.id);
       expect(purchases).toHaveLength(2);
     });
@@ -94,13 +95,13 @@ describe("purchaseService", () => {
 
   describe("createTeamPurchase", () => {
     it("creates a purchase, team, and coupons", async () => {
-      const result = await createTeamPurchase(
-        base.user.id,
-        base.course.id,
-        10000,
-        "US",
-        3
-      );
+      const result = await createTeamPurchase({
+        userId: base.user.id,
+        courseId: base.course.id,
+        pricePaid: 10000,
+        country: "US",
+        quantity: 3,
+      });
 
       expect(result.purchase).toBeDefined();
       expect(result.purchase.userId).toBe(base.user.id);
@@ -111,13 +112,13 @@ describe("purchaseService", () => {
     });
 
     it("generates coupons linked to the correct team and purchase", async () => {
-      const result = await createTeamPurchase(
-        base.user.id,
-        base.course.id,
-        10000,
-        "US",
-        2
-      );
+      const result = await createTeamPurchase({
+        userId: base.user.id,
+        courseId: base.course.id,
+        pricePaid: 10000,
+        country: "US",
+        quantity: 2,
+      });
 
       for (const coupon of result.coupons) {
         expect(coupon.teamId).toBe(result.team.id);
@@ -128,26 +129,26 @@ describe("purchaseService", () => {
     });
 
     it("generates unique coupon codes", async () => {
-      const result = await createTeamPurchase(
-        base.user.id,
-        base.course.id,
-        10000,
-        "US",
-        5
-      );
+      const result = await createTeamPurchase({
+        userId: base.user.id,
+        courseId: base.course.id,
+        pricePaid: 10000,
+        country: "US",
+        quantity: 5,
+      });
 
       const codes = new Set(result.coupons.map((c) => c.code));
       expect(codes.size).toBe(5);
     });
 
     it("reuses the same team across multiple team purchases", async () => {
-      const first = await createTeamPurchase(
-        base.user.id,
-        base.course.id,
-        10000,
-        "US",
-        2
-      );
+      const first = await createTeamPurchase({
+        userId: base.user.id,
+        courseId: base.course.id,
+        pricePaid: 10000,
+        country: "US",
+        quantity: 2,
+      });
 
       const [course2] = await testDb
         .insert(schema.courses)
@@ -161,20 +162,20 @@ describe("purchaseService", () => {
         })
         .returning();
 
-      const second = await createTeamPurchase(
-        base.user.id,
-        course2.id,
-        5000,
-        "US",
-        3
-      );
+      const second = await createTeamPurchase({
+        userId: base.user.id,
+        courseId: course2.id,
+        pricePaid: 5000,
+        country: "US",
+        quantity: 3,
+      });
 
       expect(second.team.id).toBe(first.team.id);
       expect(second.coupons).toHaveLength(3);
     });
 
     it("makes the purchaser a team admin", async () => {
-      await createTeamPurchase(base.user.id, base.course.id, 10000, "US", 1);
+      await createTeamPurchase({ userId: base.user.id, courseId: base.course.id, pricePaid: 10000, country: "US", quantity: 1 });
 
       const [membership] = await testDb
         .select()
