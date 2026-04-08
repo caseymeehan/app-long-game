@@ -1,10 +1,11 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import type { Route } from "./+types/partner-resources";
 import {
   getPageSettings,
   getAllCategoriesWithResources,
 } from "~/services/partnerResourceService";
-import { isActivePartner } from "~/services/partnerService";
+import { isActivePartner, getPartnerByUserId } from "~/services/partnerService";
 import { getCurrentUserId } from "~/lib/session";
 import { getUserById } from "~/services/userService";
 import { UserRole } from "~/db/schema";
@@ -40,6 +41,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     throw data("Only active partners can access this page.", { status: 403 });
   }
 
+  const partner = await getPartnerByUserId(currentUser.id);
   const pageSettings = await getPageSettings();
   const categories = await getAllCategoriesWithResources();
 
@@ -52,6 +54,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       ? { ...pageSettings, contentHtml }
       : null,
     categories,
+    affiliateId: partner?.affiliateId ?? null,
   };
 }
 
@@ -69,14 +72,56 @@ export function HydrateFallback() {
   );
 }
 
+function AffiliateLink({ label, url }: { label: string; url: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-sm font-medium w-36">{label}</span>
+      <code className="flex-1 rounded bg-muted px-3 py-1.5 text-sm break-all">
+        {url}
+      </code>
+      <Button variant="outline" size="sm" onClick={handleCopy}>
+        {copied ? "Copied!" : "Copy"}
+      </Button>
+    </div>
+  );
+}
+
 export default function PartnerResources({
   loaderData,
 }: Route.ComponentProps) {
-  const { pageSettings, categories } = loaderData;
+  const { pageSettings, categories, affiliateId } = loaderData;
 
   return (
     <div className="mx-auto max-w-4xl p-6 lg:p-8">
       <h1 className="mb-6 text-3xl font-bold">Partner Resources</h1>
+
+      {/* Affiliate links */}
+      {affiliateId && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <h2 className="text-lg font-semibold mb-4">Your Affiliate Links</h2>
+            <div className="space-y-3">
+              <AffiliateLink
+                label="Masterclass Opt-in"
+                url={`https://join.long-game.ai/masterclass?ref=${affiliateId}`}
+              />
+              <AffiliateLink
+                label="Sales Page"
+                url={`https://join.long-game.ai?ref=${affiliateId}`}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Welcome video */}
       {pageSettings?.videoUrl && (

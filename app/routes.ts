@@ -67,5 +67,6 @@ export default [
   route("api/video-tracking", "routes/api.video-tracking.ts"),
   route("set-password", "routes/set-password.tsx"),
   route("api/thrivecart/webhook", "routes/api.thrivecart-webhook.ts"),
+  route("api/mailchimp/subscribe", "routes/api.mailchimp-subscribe.ts"),
   route("welcome/purchase", "routes/welcome.purchase.tsx"),
 ] satisfies RouteConfig;
