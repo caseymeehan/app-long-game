@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "~/lib/supabase.server";
 import { db } from "~/db";
 import { users, UserRole } from "~/db/schema";
 import { eq } from "drizzle-orm";
+import { isActivePartner } from "~/services/partnerService";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
@@ -47,6 +48,14 @@ export async function loader({ request }: Route.LoaderArgs) {
         });
       } else if (existing.needsPasswordSetup) {
         throw redirect("/set-password", { headers: responseHeaders });
+      }
+
+      // If no explicit redirect was requested, send partners to their resources page
+      if (redirectTo === "/courses" && existing) {
+        const partner = await isActivePartner(existing.id);
+        if (partner) {
+          throw redirect("/partner-resources", { headers: responseHeaders });
+        }
       }
     }
   }

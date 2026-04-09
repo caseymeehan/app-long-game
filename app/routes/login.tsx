@@ -239,7 +239,7 @@ export default function Login() {
                   className="text-sm text-muted-foreground hover:text-foreground"
                   disabled={isSubmitting}
                 >
-                  Forgot your password?
+                  Send a login link to the email above
                 </button>
               </div>
             </Form>

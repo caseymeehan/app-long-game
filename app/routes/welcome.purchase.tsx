@@ -137,8 +137,8 @@ export default function WelcomePurchase({ loaderData }: Route.ComponentProps) {
               <div>
                 <p className="font-medium">Start learning</p>
                 <p className="text-sm text-muted-foreground">
-                  You'll have immediate access to the full course. Use AI with
-                  confidence, no matter what changes next.
+                  You'll have access to the course. Use AI with confidence,
+                  no matter what changes next.
                 </p>
               </div>
             </div>

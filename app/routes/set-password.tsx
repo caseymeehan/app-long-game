@@ -6,6 +6,7 @@ import { getCurrentUserId } from "~/lib/session";
 import { createSupabaseServerClient } from "~/lib/supabase.server";
 import { parseFormData } from "~/lib/validation";
 import { clearPasswordSetupFlag } from "~/services/userService";
+import { isActivePartner } from "~/services/partnerService";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent } from "~/components/ui/card";
@@ -72,7 +73,8 @@ export async function action({ request }: Route.ActionArgs) {
 
   await clearPasswordSetupFlag(currentUserId);
 
-  throw redirect("/courses", { headers: responseHeaders });
+  const partner = await isActivePartner(currentUserId);
+  throw redirect(partner ? "/partner-resources" : "/courses", { headers: responseHeaders });
 }
 
 export default function SetPassword() {
