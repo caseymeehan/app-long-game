@@ -15,32 +15,38 @@ export async function loader({ request }: Route.LoaderArgs) {
     const supabase = createSupabaseServerClient(request, responseHeaders);
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (!error) {
-      // Get the authenticated user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    if (error) {
+      console.error(`[auth.callback] Code exchange failed: ${error.message}`);
+      throw redirect(
+        `/login?error=auth_failed&message=${encodeURIComponent(error.message)}`,
+        { headers: responseHeaders }
+      );
+    }
 
-      if (user) {
-        // Check if app user exists, create if not
-        const [existing] = await db
-          .select()
-          .from(users)
-          .where(eq(users.supabaseAuthId, user.id));
+    // Get the authenticated user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-        if (!existing) {
-          await db.insert(users).values({
-            name:
-              user.user_metadata?.name ||
-              user.email?.split("@")[0] ||
-              "User",
-            email: user.email!,
-            role: UserRole.Student,
-            supabaseAuthId: user.id,
-          });
-        } else if (existing.needsPasswordSetup) {
-          throw redirect("/set-password", { headers: responseHeaders });
-        }
+    if (user) {
+      // Check if app user exists, create if not
+      const [existing] = await db
+        .select()
+        .from(users)
+        .where(eq(users.supabaseAuthId, user.id));
+
+      if (!existing) {
+        await db.insert(users).values({
+          name:
+            user.user_metadata?.name ||
+            user.email?.split("@")[0] ||
+            "User",
+          email: user.email!,
+          role: UserRole.Student,
+          supabaseAuthId: user.id,
+        });
+      } else if (existing.needsPasswordSetup) {
+        throw redirect("/set-password", { headers: responseHeaders });
       }
     }
   }

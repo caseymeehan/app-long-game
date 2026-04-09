@@ -170,8 +170,14 @@ export default function Login() {
 
         <Card>
           <CardContent className="p-6">
+            {searchParams.get("error") === "auth_failed" && (
+              <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                Your login link has expired or is invalid. Please request a new
+                one below.
+              </div>
+            )}
+
             <Form method="post" className="space-y-4">
-              <input type="hidden" name="intent" value="login" />
               <div>
                 <label
                   htmlFor="email"
@@ -217,29 +223,26 @@ export default function Login() {
 
               <Button
                 type="submit"
+                name="intent"
+                value="login"
                 className="w-full"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Logging in..." : "Log In"}
               </Button>
-            </Form>
 
-            <div className="mt-4 text-center">
-              <Form method="post">
-                <input type="hidden" name="intent" value="forgot_password" />
-                <input
-                  type="hidden"
-                  name="email"
-                  value={actionData?.values?.email ?? ""}
-                />
+              <div className="text-center">
                 <button
                   type="submit"
+                  name="intent"
+                  value="forgot_password"
                   className="text-sm text-muted-foreground hover:text-foreground"
+                  disabled={isSubmitting}
                 >
                   Forgot your password?
                 </button>
-              </Form>
-            </div>
+              </div>
+            </Form>
           </CardContent>
         </Card>
       </div>

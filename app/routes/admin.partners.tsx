@@ -154,7 +154,7 @@ export async function action({ request }: Route.ActionArgs) {
     const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${process.env.SUPABASE_URL ? "https://app.long-game.ai" : "http://localhost:3000"}/auth/callback`,
+        emailRedirectTo: `${process.env.APP_URL || "http://localhost:3000"}/auth/callback`,
       },
     });
 
