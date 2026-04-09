@@ -2,6 +2,7 @@ import { redirect } from "react-router";
 import type { Route } from "./+types/home";
 import { getCurrentUserId } from "~/lib/session";
 import { getDefaultCourseSlug } from "~/lib/defaultCourse";
+import { isActivePartner } from "~/services/partnerService";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -12,6 +13,10 @@ export function meta({}: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   const currentUserId = await getCurrentUserId(request);
   if (currentUserId) {
+    const partner = await isActivePartner(currentUserId);
+    if (partner) {
+      throw redirect("/partner-resources");
+    }
     throw redirect(`/courses/${getDefaultCourseSlug()}`);
   }
   throw redirect("/login");
