@@ -10,6 +10,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const redirectTo = url.searchParams.get("redirectTo") || "/courses";
+  const isDefaultRedirect = redirectTo === "/" || redirectTo === "/courses";
   const responseHeaders = new Headers();
 
   if (code) {
@@ -50,8 +51,8 @@ export async function loader({ request }: Route.LoaderArgs) {
         throw redirect("/set-password", { headers: responseHeaders });
       }
 
-      // If no explicit redirect was requested, send partners to their resources page
-      if (redirectTo === "/courses" && existing) {
+      // If no specific page was requested, send partners to their resources page
+      if (isDefaultRedirect && existing) {
         const partner = await isActivePartner(existing.id);
         if (partner) {
           throw redirect("/partner-resources", { headers: responseHeaders });

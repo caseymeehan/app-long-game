@@ -62,6 +62,7 @@ export default [
   route("no-access", "routes/no-access.tsx"),
   route("signup", "routes/signup.tsx"),
   route("login", "routes/login.tsx"),
+  route("forgot-password", "routes/forgot-password.tsx"),
   route("auth/callback", "routes/auth.callback.ts"),
   route("api/logout", "routes/api.logout.ts"),
   route("api/video-tracking", "routes/api.video-tracking.ts"),
