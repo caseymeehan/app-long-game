@@ -10,6 +10,7 @@ import type { Route } from "./+types/forgot-password";
 import { getCurrentUserId } from "~/lib/session";
 import { createSupabaseServerClient } from "~/lib/supabase.server";
 import { parseFormData } from "~/lib/validation";
+import { setPasswordSetupFlag } from "~/services/userService";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent } from "~/components/ui/card";
@@ -62,6 +63,9 @@ export async function action({ request }: Route.ActionArgs) {
   const { email } = parsed.data;
   const responseHeaders = new Headers();
   const supabase = createSupabaseServerClient(request, responseHeaders);
+
+  // Flag user to set a new password after clicking the magic link
+  await setPasswordSetupFlag(email);
 
   const url = new URL(request.url);
 

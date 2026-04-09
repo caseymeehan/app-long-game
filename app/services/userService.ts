@@ -85,6 +85,15 @@ export async function clearPasswordSetupFlag(userId: number) {
   return user;
 }
 
+export async function setPasswordSetupFlag(email: string) {
+  const [user] = await db
+    .update(users)
+    .set({ needsPasswordSetup: true })
+    .where(eq(users.email, email))
+    .returning();
+  return user;
+}
+
 export async function linkSupabaseAuth(userId: number, supabaseAuthId: string) {
   const [user] = await db
     .update(users)
