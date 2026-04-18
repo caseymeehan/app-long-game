@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import * as Sentry from "@sentry/react-router";
 import { Resend } from "resend";
 import { z } from "zod";
 import type { Route } from "./+types/api.mailchimp-subscribe";
@@ -28,13 +29,20 @@ export async function loader({ request }: Route.LoaderArgs) {
   return new Response("OK", { status: 200, headers: corsHeaders });
 }
 
-export async function action({ request }: Route.ActionArgs) {
+export const action = Sentry.wrapServerAction(
+  { name: "mailchimp-subscribe", description: "MailChimp subscribe + Resend confirmation" },
+  async ({ request }: Route.ActionArgs) => {
   const apiKey = process.env.MAILCHIMP_API_KEY;
   const listId = process.env.MAILCHIMP_LIST_ID;
   const dc = process.env.MAILCHIMP_DC;
 
+  Sentry.setTag("webhook", "mailchimp-subscribe");
+
   if (!apiKey || !listId || !dc) {
     console.error("[mailchimp-subscribe] Missing MAILCHIMP env vars");
+    Sentry.captureException(new Error("Missing MAILCHIMP env vars"), {
+      tags: { stage: "config" },
+    });
     return new Response(null, {
       status: 302,
       headers: {
@@ -98,6 +106,10 @@ export async function action({ request }: Route.ActionArgs) {
       console.error(
         `[mailchimp-subscribe] MailChimp API error ${res.status}: ${body}`
       );
+      Sentry.captureException(new Error(`MailChimp API error ${res.status}`), {
+        tags: { stage: "mailchimp" },
+        extra: { status: res.status, body: body.slice(0, 500) },
+      });
       return new Response(null, {
         status: 302,
         headers: { Location: `${redirectTo}?error=1`, ...corsHeaders },
@@ -133,6 +145,7 @@ I'm excited to share this with you. Talk soon.
       }
     } catch (resendErr) {
       console.error("[mailchimp-subscribe] Resend email failed (non-blocking):", resendErr);
+      Sentry.captureException(resendErr, { tags: { stage: "resend" } });
     }
 
     return new Response(null, {
@@ -141,9 +154,11 @@ I'm excited to share this with you. Talk soon.
     });
   } catch (err) {
     console.error("[mailchimp-subscribe] Fetch error:", err);
+    Sentry.captureException(err, { tags: { stage: "mailchimp-fetch" } });
     return new Response(null, {
       status: 302,
       headers: { Location: `${redirectTo}?error=1`, ...corsHeaders },
     });
   }
-}
+  },
+);
