@@ -7,6 +7,7 @@ import {
   ScrollRestoration,
   useNavigation,
 } from "react-router";
+import * as Sentry from "@sentry/react-router";
 
 import type { Route } from "./+types/root";
 
@@ -19,7 +20,7 @@ export const headers: Route.HeadersFunction = () => ({
     "img-src 'self' data: https:",
     "frame-src https://www.youtube.com",
     "worker-src 'self' blob:",
-    "connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net",
+    "connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net https://*.ingest.sentry.io https://*.ingest.us.sentry.io",
   ].join("; "),
 });
 import "./app.css";
@@ -104,9 +105,12 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       title = `Error ${error.status}`;
       message = typeof error.data === "string" ? error.data : (error.statusText || message);
     }
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
-    message = error.message;
-    stack = error.stack;
+  } else if (error && error instanceof Error) {
+    Sentry.captureException(error);
+    if (import.meta.env.DEV) {
+      message = error.message;
+      stack = error.stack;
+    }
   }
 
   return (
