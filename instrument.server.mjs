@@ -6,7 +6,7 @@ import * as Sentry from "@sentry/react-router";
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment: process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
-  release: process.env.SENTRY_RELEASE,
+  release: process.env.SENTRY_RELEASE || process.env.RAILWAY_GIT_COMMIT_SHA,
 
   sendDefaultPii: false,
   tracesSampleRate: 0.1,

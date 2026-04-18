@@ -24,7 +24,7 @@ git SHA, no PII shipped off-platform.
 |----------------------|----------------------------------|---------------------------------------------|
 | `SENTRY_DSN`         | from Sentry project              | Public identifier. Server only; browser DSN is inlined in entry.client.tsx. |
 | `SENTRY_ENVIRONMENT` | `production`                     | Tags events; useful if we add staging later. |
-| `SENTRY_RELEASE`     | `${{RAILWAY_GIT_COMMIT_SHA}}`    | Railway variable reference, NOT a literal.   |
+| `SENTRY_RELEASE`     | (leave unset)                    | Optional. Code falls back to `RAILWAY_GIT_COMMIT_SHA`, which Railway injects automatically at build + runtime. |
 
 **Build-only (Railway → Variables, used by `@sentry/vite-plugin`):**
 
