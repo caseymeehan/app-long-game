@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { Resend } from "resend";
 import { z } from "zod";
 import type { Route } from "./+types/api.mailchimp-subscribe";
 
@@ -104,6 +105,36 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     console.log(`[mailchimp-subscribe] Subscribed ${email} (ref: ${affiliateRef || "none"})`);
+
+    // Send confirmation email via Resend (fire-and-forget, never blocks redirect)
+    try {
+      const resendKey = process.env.RESEND_API_KEY;
+      if (resendKey) {
+        const resend = new Resend(resendKey);
+        await resend.emails.send({
+          from: "Casey Meehan <hello@blazingzebra.ai>",
+          to: [email],
+          subject: "You're in! Here's what to expect",
+          text: `Thanks for signing up for the AI Systems Masterclass — you're in!
+
+Lesson 1 drops on April 22, 2026 at 10:00 AM ET. You'll get an email from me when it's live.
+
+To make sure you don't miss it, here are a few quick things you can do:
+
+- Add hello@blazingzebra.ai to your contacts
+- Check your Promotions or Spam folder and move this email to your Primary inbox
+- Reply to this email with "got it" — it helps with deliverability
+
+I'm excited to share this with you. Talk soon.
+
+- Casey`,
+        });
+        console.log(`[mailchimp-subscribe] Resend confirmation sent to ${email}`);
+      }
+    } catch (resendErr) {
+      console.error("[mailchimp-subscribe] Resend email failed (non-blocking):", resendErr);
+    }
+
     return new Response(null, {
       status: 302,
       headers: { Location: redirectTo, ...corsHeaders },
