@@ -15,6 +15,10 @@ Sentry.init({
     // React Router's CSRF check on bot/scanner POSTs to non-existent routes.
     // The request is correctly rejected; surfacing it drowns out real errors.
     /x-forwarded-host header does not match.*origin header/i,
+
+    // React Router's internal error for unmatched routes. Scanners probe
+    // non-existent paths; legit users hit our 404 route, not this error.
+    /getInternalRouterError/,
   ],
 
   beforeSend(event) {
