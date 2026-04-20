@@ -11,6 +11,12 @@ Sentry.init({
   sendDefaultPii: false,
   tracesSampleRate: 0.1,
 
+  ignoreErrors: [
+    // React Router's CSRF check on bot/scanner POSTs to non-existent routes.
+    // The request is correctly rejected; surfacing it drowns out real errors.
+    /x-forwarded-host header does not match.*origin header/i,
+  ],
+
   beforeSend(event) {
     const req = event.request;
     if (req?.headers) {
