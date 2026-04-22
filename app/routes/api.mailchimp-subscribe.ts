@@ -126,20 +126,34 @@ export const action = Sentry.wrapServerAction(
         await resend.emails.send({
           from: "Casey Meehan <hello@blazingzebra.ai>",
           to: [email],
-          subject: "You're in! Here's what to expect",
-          text: `Thanks for signing up for the AI Systems Masterclass — you're in!
+          subject: "You're in — Video 1 is ready",
+          text: `Hey,
 
-Lesson 1 drops on April 22, 2026 at 10:00 AM ET. You'll get an email from me when it's live.
+Thanks for signing up for the AI Systems Masterclass — you're in! And you've got perfect timing: Video 1 just went live.
 
-To make sure you don't miss it, here are a few quick things you can do:
+Watch Video 1 here: https://join.long-game.ai/masterclass/training/plc-1/
+
+In the first video I cover:
+
+- The one-sentence test that separates a real AI system from a well-intentioned pile of tools
+- The invisible lines that decide when AI helps your work and when it quietly takes it over
+- Why your tools aren't the only parts of your system, and what happens when you forget the others
+- The quiet beliefs shaping your AI setup right now
+- Mapping the real limits of your system: time, cost, privacy, ethics
+
+Video 2 drops in a few days — keep an eye on your inbox.
+
+A few quick things so you don't miss it:
 
 - Add hello@blazingzebra.ai to your contacts
 - Check your Promotions or Spam folder and move this email to your Primary inbox
 - Reply to this email with "got it" — it helps with deliverability
 
-I'm excited to share this with you. Talk soon.
+Talk soon,
+Casey
 
-- Casey`,
+P.S. Watch all the way to the end — that's where I unlock a quick exercise you can run right now.
+Watch Video 1: https://join.long-game.ai/masterclass/training/plc-1/`,
         });
         console.log(`[mailchimp-subscribe] Resend confirmation sent to ${email}`);
       }
