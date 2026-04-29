@@ -31,6 +31,12 @@ function extractVideoId(url: string): string | null {
   return null;
 }
 
+function extractVimeo(url: string): { id: string; hash?: string } | null {
+  const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/);
+  if (!match) return null;
+  return { id: match[1], hash: match[2] || undefined };
+}
+
 let apiLoadPromise: Promise<void> | null = null;
 
 function loadYouTubeAPI(): Promise<void> {
@@ -82,6 +88,7 @@ export function YouTubePlayer({
   );
 
   const videoId = extractVideoId(videoUrl);
+  const vimeo = extractVimeo(videoUrl);
 
   const sendTrackingEvent = useCallback(
     (eventType: string, positionSeconds: number) => {
@@ -193,6 +200,23 @@ export function YouTubePlayer({
       playerRef.current = null;
     };
   }, [videoId, startPosition, autoplay, sendTrackingEvent, startTracking, stopTracking, updateProgress]);
+
+  if (vimeo) {
+    const src = `https://player.vimeo.com/video/${vimeo.id}${vimeo.hash ? `?h=${vimeo.hash}` : ""}`;
+    return (
+      <div className="mb-8">
+        <div className="aspect-video overflow-hidden rounded-lg">
+          <iframe
+            src={src}
+            title={title}
+            className="h-full w-full"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (!videoId) {
     return (

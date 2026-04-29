@@ -18,7 +18,7 @@ export const headers: Route.HeadersFunction = () => ({
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https:",
-    "frame-src https://www.youtube.com",
+    "frame-src https://www.youtube.com https://player.vimeo.com",
     "worker-src 'self' blob:",
     "connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net https://*.ingest.sentry.io https://*.ingest.us.sentry.io",
   ].join("; "),
