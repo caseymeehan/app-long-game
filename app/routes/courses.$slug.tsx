@@ -207,9 +207,11 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
                     <h3 className="font-semibold hover:underline">{mod.title}</h3>
                   </Link>
                 )}
-                <p className="text-sm text-muted-foreground">
-                  {mod.lessons.length} lessons
-                </p>
+                {!mod.isLocked && (
+                  <p className="text-sm text-muted-foreground">
+                    {mod.lessons.length} lessons
+                  </p>
+                )}
               </CardHeader>
               {!mod.isLocked && (
                 <CardContent>
