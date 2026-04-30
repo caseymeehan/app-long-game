@@ -42,7 +42,9 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (currentUserId) {
     throw redirect("/");
   }
-  return {};
+  const url = new URL(request.url);
+  const emailParam = url.searchParams.get("email") ?? "";
+  return { emailParam };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -97,7 +99,7 @@ export async function action({ request }: Route.ActionArgs) {
   );
 }
 
-export default function ForgotPassword() {
+export default function ForgotPassword({ loaderData }: Route.ComponentProps) {
   const actionData = useActionData<typeof action>() as ActionResult | undefined;
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -153,7 +155,7 @@ export default function ForgotPassword() {
                   name="email"
                   type="email"
                   placeholder="you@example.com"
-                  defaultValue={actionData?.values?.email ?? ""}
+                  defaultValue={actionData?.values?.email ?? loaderData?.emailParam ?? ""}
                   aria-invalid={!!actionData?.errors?.email}
                 />
                 {actionData?.errors?.email && (

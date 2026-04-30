@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { createHash } from "crypto";
 import type { Route } from "./+types/welcome.purchase";
-import { getSupabaseAdmin } from "~/lib/supabase-admin.server";
+import { Button } from "~/components/ui/button";
 
 export function meta() {
   return [
@@ -39,22 +39,6 @@ export async function loader({ request }: Route.LoaderArgs) {
       .update(secret + jsonStr)
       .digest("hex");
     hashValid = expectedHash === hash;
-  }
-
-  // If hash is valid and we have an email, send magic link as fallback
-  // (in case webhook hasn't processed yet)
-  if (hashValid && email) {
-    try {
-      const supabaseAdmin = getSupabaseAdmin();
-      await supabaseAdmin.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: "https://app.long-game.ai/auth/callback",
-        },
-      });
-    } catch {
-      // Non-critical — webhook should handle this
-    }
   }
 
   return { email, hashValid };
@@ -103,17 +87,17 @@ export default function WelcomePurchase({ loaderData }: Route.ComponentProps) {
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-sm font-bold text-background">
                 1
               </div>
-              <div>
-                <p className="font-medium">Check your email</p>
-                <p className="text-sm text-muted-foreground">
-                  We sent a login link to
-                  {email ? (
-                    <strong className="text-foreground"> {email}</strong>
-                  ) : (
-                    " your email address"
-                  )}
-                  . It should arrive within a minute.
+              <div className="flex-1">
+                <p className="font-medium">Set up your account</p>
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Click below and we'll send you a secure link to create your
+                  password.
                 </p>
+                <Link
+                  to={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`}
+                >
+                  <Button>Set up my account</Button>
+                </Link>
               </div>
             </div>
 
@@ -122,10 +106,15 @@ export default function WelcomePurchase({ loaderData }: Route.ComponentProps) {
                 2
               </div>
               <div>
-                <p className="font-medium">Set your password</p>
+                <p className="font-medium">Check your email</p>
                 <p className="text-sm text-muted-foreground">
-                  After clicking the link, you'll create a password so you can
-                  log in anytime.
+                  The link will arrive at
+                  {email ? (
+                    <strong className="text-foreground"> {email}</strong>
+                  ) : (
+                    " your email address"
+                  )}
+                  {" "}within a minute. Click it to create your password.
                 </p>
               </div>
             </div>
@@ -137,8 +126,8 @@ export default function WelcomePurchase({ loaderData }: Route.ComponentProps) {
               <div>
                 <p className="font-medium">Start learning</p>
                 <p className="text-sm text-muted-foreground">
-                  You'll have access to the course. Use AI with confidence,
-                  no matter what changes next.
+                  Once your password is set, you'll have full access to the
+                  course.
                 </p>
               </div>
             </div>
@@ -147,13 +136,12 @@ export default function WelcomePurchase({ loaderData }: Route.ComponentProps) {
           {/* Help text */}
           <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
             <p>
-              Don't see the email? Check your spam folder. If it still doesn't
-              show up,{" "}
+              Already have a password?{" "}
               <Link
                 to="/login"
                 className="font-medium text-foreground underline underline-offset-4 hover:text-foreground/80"
               >
-                request a new login link here
+                Log in here
               </Link>
               .
             </p>

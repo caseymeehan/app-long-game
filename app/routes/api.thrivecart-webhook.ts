@@ -161,22 +161,10 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
     console.log(`[thrivecart-webhook] Flagged ${email} for password setup`);
   }
 
-  // 5. Send magic link email
-  const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${process.env.APP_URL || "http://localhost:3000"}/auth/callback`,
-    },
-  });
-
-  if (otpError) {
-    console.error(`[thrivecart-webhook] Failed to send magic link: ${otpError.message}`);
-    Sentry.captureException(new Error(`Failed to send magic link: ${otpError.message}`), {
-      tags: { webhook: "thrivecart", stage: "magic-link" },
-    });
-  } else {
-    console.log(`[thrivecart-webhook] Magic link sent to ${email}`);
-  }
+  // Magic link is intentionally NOT sent here. Admin-client signInWithOtp
+  // produces implicit-flow links that our SSR /auth/callback can't exchange.
+  // welcome.purchase.tsx directs the buyer to /forgot-password, which uses
+  // the cookie-bound SSR client and produces a working PKCE link.
 
   return new Response("OK", { status: 200 });
 }
