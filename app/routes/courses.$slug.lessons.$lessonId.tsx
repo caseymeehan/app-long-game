@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link, useFetcher, useNavigate } from "react-router";
+import { Link, useFetcher, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import type { Route } from "./+types/courses.$slug.lessons.$lessonId";
 import {
@@ -37,6 +37,7 @@ import {
   Clock,
   Github,
   HelpCircle,
+  Lock,
   PlayCircle,
   XCircle,
   Trophy,
@@ -815,11 +816,30 @@ function QuizSection({
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const { slug } = useParams();
   let title = "Something went wrong";
   let message = "An unexpected error occurred while loading this lesson.";
 
   if (isRouteErrorResponse(error)) {
-    if (error.status === 404) {
+    if (error.status === 403) {
+      // Module locked — drip content, not an error
+      return (
+        <div className="flex min-h-[50vh] items-center justify-center p-6">
+          <div className="text-center">
+            <Lock className="mx-auto mb-4 size-12 text-muted-foreground" />
+            <h1 className="mb-2 text-2xl font-bold">Not yet unlocked</h1>
+            <p className="mb-6 text-muted-foreground">
+              {typeof error.data === "string"
+                ? error.data
+                : "This module hasn't been unlocked yet."}
+            </p>
+            <Link to={slug ? `/courses/${slug}` : "/"}>
+              <Button>{slug ? "Back to course" : "Go Home"}</Button>
+            </Link>
+          </div>
+        </div>
+      );
+    } else if (error.status === 404) {
       title = "Lesson not found";
       message =
         "The lesson you're looking for doesn't exist or may have been removed.";
