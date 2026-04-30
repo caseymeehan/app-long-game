@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Circle,
   Clock,
+  Lock,
   PlayCircle,
 } from "lucide-react";
 import { data, isRouteErrorResponse } from "react-router";
@@ -194,53 +195,64 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
           {course.modules.map((mod) => (
             <Card key={mod.id}>
               <CardHeader>
-                <Link to={`/courses/${course.slug}/${mod.id}`}>
-                  <h3 className="font-semibold hover:underline">{mod.title}</h3>
-                </Link>
+                {mod.isLocked ? (
+                  <div className="flex items-center gap-2">
+                    <Lock className="size-4 shrink-0 text-muted-foreground" />
+                    <h3 className="font-semibold text-muted-foreground">
+                      {mod.title}
+                    </h3>
+                  </div>
+                ) : (
+                  <Link to={`/courses/${course.slug}/${mod.id}`}>
+                    <h3 className="font-semibold hover:underline">{mod.title}</h3>
+                  </Link>
+                )}
                 <p className="text-sm text-muted-foreground">
                   {mod.lessons.length} lessons
                 </p>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {mod.lessons.map((lesson) => {
-                    const status = lessonProgressMap[lesson.id];
-                    const isCompleted =
-                      status === LessonProgressStatus.Completed;
-                    const isInProgress =
-                      status === LessonProgressStatus.InProgress;
+              {!mod.isLocked && (
+                <CardContent>
+                  <ul className="space-y-2">
+                    {mod.lessons.map((lesson) => {
+                      const status = lessonProgressMap[lesson.id];
+                      const isCompleted =
+                        status === LessonProgressStatus.Completed;
+                      const isInProgress =
+                        status === LessonProgressStatus.InProgress;
 
-                    return (
-                      <li key={lesson.id}>
-                        <Link
-                          to={`/courses/${course.slug}/lessons/${lesson.id}`}
-                          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted"
-                        >
-                          {isCompleted ? (
-                            <CheckCircle2 className="size-4 shrink-0 text-green-500" />
-                          ) : isInProgress ? (
-                            <PlayCircle className="size-4 shrink-0 text-blue-500" />
-                          ) : (
-                            <Circle className="size-4 shrink-0 text-muted-foreground" />
-                          )}
-                          <span className="flex-1">{lesson.title}</span>
-                          {lesson.durationMinutes && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Clock className="size-3" />
-                              {formatDuration(
-                                lesson.durationMinutes,
-                                true,
-                                false,
-                                false
-                              )}
-                            </span>
-                          )}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </CardContent>
+                      return (
+                        <li key={lesson.id}>
+                          <Link
+                            to={`/courses/${course.slug}/lessons/${lesson.id}`}
+                            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted"
+                          >
+                            {isCompleted ? (
+                              <CheckCircle2 className="size-4 shrink-0 text-green-500" />
+                            ) : isInProgress ? (
+                              <PlayCircle className="size-4 shrink-0 text-blue-500" />
+                            ) : (
+                              <Circle className="size-4 shrink-0 text-muted-foreground" />
+                            )}
+                            <span className="flex-1">{lesson.title}</span>
+                            {lesson.durationMinutes && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Clock className="size-3" />
+                                {formatDuration(
+                                  lesson.durationMinutes,
+                                  true,
+                                  false,
+                                  false
+                                )}
+                              </span>
+                            )}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </CardContent>
+              )}
             </Card>
           ))}
         </div>
