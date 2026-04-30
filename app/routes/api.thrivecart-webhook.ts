@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import * as Sentry from "@sentry/react-router";
 import type { Route } from "./+types/api.thrivecart-webhook";
 import { getSupabaseAdmin } from "~/lib/supabase-admin.server";
-import { getUserByEmail } from "~/services/userService";
+import { getUserByEmail, setPasswordSetupFlag } from "~/services/userService";
 import { waitForAppUser } from "~/lib/wait-for-user";
 import {
   createPurchase,
@@ -152,6 +152,13 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
   if (!existing) {
     await enrollUser({ userId: appUser.id, courseId, sendEmail: false, skipValidation: true });
     console.log(`[thrivecart-webhook] Enrolled user ${appUser.id} in course ${courseId}`);
+  }
+
+  // 4b. Flag new buyers so the magic-link callback routes them through /set-password.
+  // Skip existing customers (re-purchasers, admin-granted users) who may already have a password.
+  if (createData?.user) {
+    await setPasswordSetupFlag(email);
+    console.log(`[thrivecart-webhook] Flagged ${email} for password setup`);
   }
 
   // 5. Send magic link email
