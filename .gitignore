@@ -14,3 +14,6 @@
 .pnpm-store
 *.db-shm
 .claude/settings.local.json
+
+# Local-only operational scripts (comp enrollments, ad-hoc data fixes, etc.)
+scripts/local/
