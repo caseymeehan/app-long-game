@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useFetcher, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import type { Route } from "./+types/courses.$slug.lessons.$lessonId";
@@ -70,12 +70,14 @@ type FlatLesson = {
   title: string;
   moduleId: number;
   moduleTitle: string;
+  moduleIsLocked: boolean;
 };
 
 function flattenCourseLessons(course: {
   modules: Array<{
     id: number;
     title: string;
+    isLocked: boolean;
     lessons: Array<{ id: number; title: string; moduleId: number }>;
   }>;
 }): FlatLesson[] {
@@ -87,6 +89,7 @@ function flattenCourseLessons(course: {
         title: lesson.title,
         moduleId: mod.id,
         moduleTitle: mod.title,
+        moduleIsLocked: mod.isLocked,
       });
     }
   }
@@ -371,14 +374,29 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
     fetcher.state !== "idle" &&
     fetcher.formData?.get("intent") === "mark-complete";
 
-  const justCompleted = fetcher.data?.success;
+  // useFetcher is keyed by lesson id, so fetcher.data persists across
+  // navigations. Without this guard, revisiting a previously-completed lesson
+  // would re-fire the auto-advance below and bounce the user forward.
+  const wasMarkingRef = useRef(false);
+  const [justAdvanced, setJustAdvanced] = useState(false);
+
+  useEffect(() => {
+    if (isMarking) wasMarkingRef.current = true;
+  }, [isMarking]);
+
+  const justCompleted =
+    fetcher.state === "idle" &&
+    fetcher.data?.success === true &&
+    wasMarkingRef.current &&
+    !justAdvanced;
 
   const isCompleted =
-    lessonStatus === LessonProgressStatus.Completed || justCompleted;
+    lessonStatus === LessonProgressStatus.Completed ||
+    fetcher.data?.success === true;
 
-  // Navigate to next lesson after marking complete
   useEffect(() => {
-    if (justCompleted && nextLesson) {
+    if (justCompleted && nextLesson && !nextLesson.moduleIsLocked) {
+      setJustAdvanced(true);
       navigate(`/courses/${course.slug}/lessons/${nextLesson.id}`);
     }
   }, [justCompleted, nextLesson, course.slug, navigate]);
