@@ -8,6 +8,7 @@ const subscribeSchema = z.object({
   email: z.string().email(),
   firstName: z.string().optional().default(""),
   affiliateRef: z.string().optional().default(""),
+  tags: z.string().optional().default(""),
   redirectTo: z
     .string()
     .url()
@@ -58,6 +59,7 @@ export const action = Sentry.wrapServerAction(
     email: formData.get("email") ?? undefined,
     firstName: formData.get("firstName") ?? undefined,
     affiliateRef: formData.get("affiliateRef") ?? undefined,
+    tags: formData.get("tags") ?? undefined,
     redirectTo: formData.get("redirectTo") ?? undefined,
   };
 
@@ -75,7 +77,11 @@ export const action = Sentry.wrapServerAction(
     });
   }
 
-  const { email, firstName, affiliateRef, redirectTo } = parsed.data;
+  const { email, firstName, affiliateRef, tags, redirectTo } = parsed.data;
+  const tagList = tags
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
 
   const emailHash = createHash("md5")
     .update(email.toLowerCase().trim())
@@ -97,6 +103,7 @@ export const action = Sentry.wrapServerAction(
             FNAME: firstName,
             AFREF: affiliateRef,
           },
+          ...(tagList.length > 0 ? { tags: tagList } : {}),
         }),
       }
     );
@@ -116,12 +123,47 @@ export const action = Sentry.wrapServerAction(
       });
     }
 
-    console.log(`[mailchimp-subscribe] Subscribed ${email} (ref: ${affiliateRef || "none"})`);
+    console.log(`[mailchimp-subscribe] Subscribed ${email} (ref: ${affiliateRef || "none"}, tags: ${tagList.join("|") || "none"})`);
+
+    // For existing members the PUT body's `tags` is sometimes ignored; the
+    // canonical way to set tags is a follow-up POST to /members/{hash}/tags.
+    if (tagList.length > 0) {
+      try {
+        const tagRes = await fetch(
+          `https://${dc}.api.mailchimp.com/3.0/lists/${listId}/members/${emailHash}/tags`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Basic ${btoa(`anystring:${apiKey}`)}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              tags: tagList.map((name) => ({ name, status: "active" })),
+            }),
+          }
+        );
+        if (!tagRes.ok) {
+          const body = await tagRes.text();
+          console.error(`[mailchimp-subscribe] Tag POST error ${tagRes.status}: ${body}`);
+          Sentry.captureException(new Error(`MailChimp tag POST error ${tagRes.status}`), {
+            tags: { stage: "mailchimp-tags" },
+            extra: { status: tagRes.status, body: body.slice(0, 500) },
+          });
+        }
+      } catch (tagErr) {
+        console.error("[mailchimp-subscribe] Tag POST fetch error (non-blocking):", tagErr);
+        Sentry.captureException(tagErr, { tags: { stage: "mailchimp-tags" } });
+      }
+    }
+
+    // Skip the masterclass "Video 1 is ready" confirmation when this is a
+    // waitlist/non-masterclass signup — wrong copy for those subscribers.
+    const skipMasterclassConfirmation = tagList.includes("cohort-waitlist");
 
     // Send confirmation email via Resend (fire-and-forget, never blocks redirect)
     try {
       const resendKey = process.env.RESEND_API_KEY;
-      if (resendKey) {
+      if (resendKey && !skipMasterclassConfirmation) {
         const resend = new Resend(resendKey);
         await resend.emails.send({
           from: "Casey Meehan <hello@blazingzebra.ai>",
