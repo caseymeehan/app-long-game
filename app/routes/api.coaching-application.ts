@@ -76,12 +76,10 @@ export const action = Sentry.wrapServerAction(
 
     const formData = await request.formData();
 
-    // Honeypot: real users never see/fill this. If filled, pretend success
-    // (don't save, don't email) so bots get no signal.
-    if ((formData.get("website") ?? "").toString().trim() !== "") {
-      console.warn("[coaching-application] Honeypot tripped — dropping submission");
-      return redirect(`${BASE}?submitted=1`);
-    }
+    // Bot protection is handled server-side by the Cloudflare Turnstile check
+    // below. We deliberately do NOT use a honeypot field here: a hidden field
+    // (e.g. name="website") gets auto-filled by browsers/password managers,
+    // which silently dropped real applications as "bots".
 
     // Checkboxes share name="helpAreas"; collect all checked values.
     const helpAreas = formData
