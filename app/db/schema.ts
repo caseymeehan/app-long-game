@@ -316,3 +316,22 @@ export const partnerPageSettings = pgTable("partner_page_settings", {
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
+
+// Submissions from the public /one-on-one coaching application form on the
+// marketing site (join.long-game.ai). This row is the source of truth — it is
+// written before the notification email, so a Resend failure never loses a lead.
+export const coachingApplications = pgTable("coaching_applications", {
+  id: serial("id").primaryKey(),
+  describesYou: text("describes_you"),
+  biggestChallenge: text("biggest_challenge"),
+  engineChange: text("engine_change"),
+  helpAreas: text("help_areas"),
+  focusQuestion: text("focus_question"),
+  interestLevel: text("interest_level"),
+  budget: text("budget"),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
