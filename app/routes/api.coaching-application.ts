@@ -6,7 +6,19 @@ import { coachingApplications } from "~/db/schema";
 import type { Route } from "./+types/api.coaching-application";
 
 const BASE = "https://join.long-game.ai/one-on-one/";
-const NOTIFY_TO = "hello@blazingzebra.ai";
+// Notify multiple inboxes so a single mailbox/spam-filter problem never hides a
+// lead. The DB row is still the source of truth.
+const NOTIFY_TO = ["hello@blazingzebra.ai", "casey@epicpresence.com"];
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Truncate (never reject) over-long text so a heartfelt long answer is never
+// lost. Trims whitespace; caps generously.
+const text = (max: number) =>
+  z
+    .string()
+    .optional()
+    .default("")
+    .transform((s) => s.slice(0, max));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://join.long-game.ai",
@@ -14,17 +26,38 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+// Everything is lenient on purpose: this form captures high-value leads, so we
+// never reject a real submission over a length cap or a stray space. Bad input
+// is saved-and-flagged (see the email below), not dropped.
 const applicationSchema = z.object({
-  describesYou: z.string().max(200).optional().default(""),
-  biggestChallenge: z.string().max(5000).optional().default(""),
-  engineChange: z.string().max(5000).optional().default(""),
-  helpAreas: z.string().max(2000).optional().default(""),
-  focusQuestion: z.string().max(5000).optional().default(""),
-  interestLevel: z.string().max(200).optional().default(""),
-  budget: z.string().max(200).optional().default(""),
-  name: z.string().min(1).max(200),
-  email: z.string().email().max(320),
-  redirectTo: z.string().url().optional().default(BASE),
+  describesYou: text(500),
+  biggestChallenge: text(8000),
+  engineChange: text(8000),
+  helpAreas: text(4000),
+  focusQuestion: text(8000),
+  interestLevel: text(500),
+  budget: text(500),
+  name: z
+    .string()
+    .optional()
+    .default("")
+    .transform((s) => s.trim().slice(0, 200)),
+  email: z
+    .string()
+    .optional()
+    .default("")
+    .transform((s) => s.trim().slice(0, 320)),
+  redirectTo: z
+    .string()
+    .optional()
+    .default(BASE)
+    .transform((s) => {
+      try {
+        return new URL(s).toString();
+      } catch {
+        return BASE;
+      }
+    }),
 });
 
 function redirect(location: string) {
@@ -111,17 +144,26 @@ export const action = Sentry.wrapServerAction(
     const data = parsed.data;
     const { redirectTo } = data;
 
-    // Captcha
+    // Captcha — FAIL OPEN. A blocked Cloudflare script (ad-blockers, privacy
+    // browsers, corporate firewalls) or a Turnstile outage must never cost us a
+    // real lead, so we never drop a submission on captcha failure. We record
+    // whether it verified and flag unverified ones in the notification so spam
+    // can be triaged by eye. Bot tolerance is an explicit, accepted tradeoff.
     const ip =
       request.headers.get("CF-Connecting-IP") ||
       request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ||
       null;
     const token = (formData.get("cf-turnstile-response") ?? "").toString();
-    const captchaOk = await verifyTurnstile(token, ip);
-    if (!captchaOk) {
-      console.warn("[coaching-application] Captcha verification failed");
-      return redirect(`${redirectTo}?error=captcha`);
+    const captchaVerified = await verifyTurnstile(token, ip);
+    if (!captchaVerified) {
+      console.warn("[coaching-application] Captcha not verified — saving anyway (fail-open), flagged for review");
     }
+
+    const emailLooksValid = EMAIL_RE.test(data.email);
+    const flags: string[] = [];
+    if (!captchaVerified) flags.push("captcha-unverified");
+    if (!emailLooksValid) flags.push("email-looks-invalid");
+    if (!data.name) flags.push("no-name");
 
     // Failsafe: the DB row is the source of truth and is written first, so a
     // Resend outage never loses a lead. We still attempt the email even if the
@@ -152,16 +194,19 @@ export const action = Sentry.wrapServerAction(
       const resendKey = process.env.RESEND_API_KEY;
       if (resendKey) {
         const resend = new Resend(resendKey);
+        const flagPrefix = flags.length ? `[review: ${flags.join(", ")}] ` : "";
         await resend.emails.send({
           from: "Long Game Applications <hello@blazingzebra.ai>",
-          to: [NOTIFY_TO],
-          replyTo: data.email,
-          subject: `New 1:1 coaching application — ${data.name}`,
+          to: NOTIFY_TO,
+          // Only set replyTo when the address is well-formed — a malformed
+          // replyTo can make Resend reject the whole send and lose the notice.
+          ...(emailLooksValid ? { replyTo: data.email } : {}),
+          subject: `${flagPrefix}New 1:1 coaching application — ${data.name || "(no name)"}`,
           text: [
             `New application from the /one-on-one page.`,
-            ``,
-            `Name:  ${data.name}`,
-            `Email: ${data.email}`,
+            flags.length ? `\n⚠ FLAGGED FOR REVIEW: ${flags.join(", ")}\n` : ``,
+            `Name:  ${data.name || "(not provided)"}`,
+            `Email: ${data.email || "(not provided)"}${emailLooksValid ? "" : "  ⚠ may be invalid — double-check before replying"}`,
             ``,
             `Biggest challenge with AI right now?`,
             `  ${data.biggestChallenge || "—"}`,
@@ -176,7 +221,7 @@ export const action = Sentry.wrapServerAction(
           ].join("\n"),
         });
         emailed = true;
-        console.log(`[coaching-application] Notification email sent to ${NOTIFY_TO}`);
+        console.log(`[coaching-application] Notification email sent to ${NOTIFY_TO.join(", ")}`);
       } else {
         console.warn("[coaching-application] RESEND_API_KEY not set — skipping notification email");
       }
