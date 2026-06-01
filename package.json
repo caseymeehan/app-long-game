@@ -42,6 +42,7 @@
     "zod": "^3.25.36"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
     "@react-router/dev": "7.12.0",
     "@sentry/vite-plugin": "^5.2.0",
     "@tailwindcss/vite": "^4.1.13",
