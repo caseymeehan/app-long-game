@@ -32,6 +32,7 @@ interface Module {
   id: number;
   title: string;
   position: number;
+  isLocked: boolean;
   lessons: Lesson[];
 }
 

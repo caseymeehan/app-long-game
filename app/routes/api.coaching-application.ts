@@ -103,7 +103,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export const action = Sentry.wrapServerAction(
-  { name: "coaching-application", description: "1:1 coaching application capture + Resend notify" },
+  { name: "coaching-application" },
   async ({ request }: Route.ActionArgs) => {
     Sentry.setTag("webhook", "coaching-application");
 

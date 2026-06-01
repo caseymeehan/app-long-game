@@ -29,7 +29,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export const action = Sentry.wrapServerAction(
-  { name: "thrivecart-webhook", description: "ThriveCart order/refund webhook" },
+  { name: "thrivecart-webhook" },
   async ({ request }: Route.ActionArgs) => {
     const secret = process.env.THRIVECART_SECRET;
     const courseId = parseInt(process.env.THRIVECART_COURSE_ID || "1", 10);

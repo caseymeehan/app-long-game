@@ -2,7 +2,9 @@ import { useEffect, useRef, useCallback, useState } from "react";
 
 declare global {
   interface Window {
-    YT: typeof YT;
+    // Reference via globalThis: YT is a UMD global, and `typeof YT` directly
+    // isn't allowed inside a module (TS2686).
+    YT: typeof globalThis.YT;
     onYouTubeIframeAPIReady: (() => void) | undefined;
   }
 }

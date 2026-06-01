@@ -31,7 +31,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export const action = Sentry.wrapServerAction(
-  { name: "mailchimp-subscribe", description: "MailChimp subscribe + Resend confirmation" },
+  { name: "mailchimp-subscribe" },
   async ({ request }: Route.ActionArgs) => {
   const apiKey = process.env.MAILCHIMP_API_KEY;
   const listId = process.env.MAILCHIMP_LIST_ID;

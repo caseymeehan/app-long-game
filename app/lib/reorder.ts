@@ -1,5 +1,5 @@
 import { eq, and, sql, gt, lt, gte, lte } from "drizzle-orm";
-import type { PgTable, PgColumn } from "drizzle-orm/pg-core";
+import type { PgTable, PgColumn, PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { db } from "~/db";
 
 /**
@@ -23,7 +23,8 @@ export async function moveItemToPosition<T extends PgTable>(opts: {
   if (newPosition > oldPosition) {
     // Moving down: shift items between old+1 and new up by 1
     await db.update(table)
-      .set({ [positionColumn.name]: sql`${positionColumn} - 1` })
+      // Dynamic column key on a generic table — drizzle can't infer it from T.
+      .set({ [positionColumn.name]: sql`${positionColumn} - 1` } as PgUpdateSetSource<T>)
       .where(
         and(
           eq(parentColumn, parentId),
@@ -34,7 +35,7 @@ export async function moveItemToPosition<T extends PgTable>(opts: {
   } else {
     // Moving up: shift items between new and old-1 down by 1
     await db.update(table)
-      .set({ [positionColumn.name]: sql`${positionColumn} + 1` })
+      .set({ [positionColumn.name]: sql`${positionColumn} + 1` } as PgUpdateSetSource<T>)
       .where(
         and(
           eq(parentColumn, parentId),
@@ -45,6 +46,6 @@ export async function moveItemToPosition<T extends PgTable>(opts: {
   }
 
   await db.update(table)
-    .set({ [positionColumn.name]: newPosition })
+    .set({ [positionColumn.name]: newPosition } as PgUpdateSetSource<T>)
     .where(eq(idColumn, itemId));
 }
