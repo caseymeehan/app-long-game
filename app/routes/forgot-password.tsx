@@ -75,10 +75,22 @@ export async function action({ request }: Route.ActionArgs) {
     email,
     options: {
       emailRedirectTo: `${url.origin}/auth/callback`,
+      // Don't spawn a brand-new auth user for an unknown email. Without this,
+      // a fat-fingered address creates an orphan auth.users row that lands on
+      // an empty dashboard (see the Jason McNish three-accounts case).
+      shouldCreateUser: false,
     },
   });
 
-  if (error) {
+  // With shouldCreateUser:false, an unknown email throws "Signups not allowed
+  // for otp" (code otp_disabled). Swallow that one case and return the same
+  // generic success we return for known emails, so the response never reveals
+  // whether an account exists (anti-enumeration). Real send failures still surface.
+  const isUnknownEmail =
+    error?.code === "otp_disabled" ||
+    /signups? not allowed/i.test(error?.message ?? "");
+
+  if (error && !isUnknownEmail) {
     return data(
       {
         errors: { email: error.message },
