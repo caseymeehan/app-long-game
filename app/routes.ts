@@ -71,4 +71,5 @@ export default [
   route("api/mailchimp/subscribe", "routes/api.mailchimp-subscribe.ts"),
   route("api/coaching-application", "routes/api.coaching-application.ts"),
   route("welcome/purchase", "routes/welcome.purchase.tsx"),
+  route("health", "routes/health.ts"),
 ] satisfies RouteConfig;
