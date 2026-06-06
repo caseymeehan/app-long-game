@@ -12,7 +12,6 @@ export default [
     route("courses", "routes/courses.tsx"),
     route("courses/:slug", "routes/courses.$slug.tsx"),
     route("courses/:slug/:moduleId", "routes/courses.$slug.$moduleId.tsx"),
-    route("courses/:slug/purchase", "routes/courses.$slug.purchase.tsx"),
     route("courses/:slug/welcome", "routes/courses.$slug.welcome.tsx"),
     route(
       "courses/:slug/lessons/:lessonId",
@@ -56,8 +55,6 @@ export default [
       "routes/partner-resources.$resourceId.tsx"
     ),
     route("settings", "routes/settings.tsx"),
-    route("team", "routes/team.tsx"),
-    route("redeem/:code", "routes/redeem.$code.tsx"),
   ]),
   route("no-access", "routes/no-access.tsx"),
   route("signup", "routes/signup.tsx"),
