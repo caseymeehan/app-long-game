@@ -50,13 +50,13 @@ export const users = pgTable("users", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
-});
+}).enableRLS();
 
 export const courses = pgTable("courses", {
   id: serial("id").primaryKey(),
@@ -80,7 +80,7 @@ export const courses = pgTable("courses", {
   updatedAt: text("updated_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const modules = pgTable("modules", {
   id: serial("id").primaryKey(),
@@ -96,7 +96,7 @@ export const modules = pgTable("modules", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const lessons = pgTable("lessons", {
   id: serial("id").primaryKey(),
@@ -112,7 +112,7 @@ export const lessons = pgTable("lessons", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const enrollments = pgTable("enrollments", {
   id: serial("id").primaryKey(),
@@ -126,7 +126,7 @@ export const enrollments = pgTable("enrollments", {
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
   completedAt: text("completed_at"),
-});
+}).enableRLS();
 
 export const lessonProgress = pgTable("lesson_progress", {
   id: serial("id").primaryKey(),
@@ -135,19 +135,19 @@ export const lessonProgress = pgTable("lesson_progress", {
     .references(() => users.id),
   lessonId: integer("lesson_id")
     .notNull()
-    .references(() => lessons.id),
+    .references(() => lessons.id, { onDelete: "cascade" }),
   status: text("status").notNull().$type<LessonProgressStatus>(),
   completedAt: text("completed_at"),
-});
+}).enableRLS();
 
 export const quizzes = pgTable("quizzes", {
   id: serial("id").primaryKey(),
   lessonId: integer("lesson_id")
     .notNull()
-    .references(() => lessons.id),
+    .references(() => lessons.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   passingScore: real("passing_score").notNull(),
-});
+}).enableRLS();
 
 export const quizQuestions = pgTable("quiz_questions", {
   id: serial("id").primaryKey(),
@@ -157,7 +157,7 @@ export const quizQuestions = pgTable("quiz_questions", {
   questionText: text("question_text").notNull(),
   questionType: text("question_type").notNull().$type<QuestionType>(),
   position: integer("position").notNull(),
-});
+}).enableRLS();
 
 export const quizOptions = pgTable("quiz_options", {
   id: serial("id").primaryKey(),
@@ -166,7 +166,7 @@ export const quizOptions = pgTable("quiz_options", {
     .references(() => quizQuestions.id),
   optionText: text("option_text").notNull(),
   isCorrect: boolean("is_correct").notNull(),
-});
+}).enableRLS();
 
 export const quizAttempts = pgTable("quiz_attempts", {
   id: serial("id").primaryKey(),
@@ -181,7 +181,7 @@ export const quizAttempts = pgTable("quiz_attempts", {
   attemptedAt: text("attempted_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const quizAnswers = pgTable("quiz_answers", {
   id: serial("id").primaryKey(),
@@ -194,7 +194,7 @@ export const quizAnswers = pgTable("quiz_answers", {
   selectedOptionId: integer("selected_option_id")
     .notNull()
     .references(() => quizOptions.id),
-});
+}).enableRLS();
 
 export const purchases = pgTable("purchases", {
   id: serial("id").primaryKey(),
@@ -212,14 +212,14 @@ export const purchases = pgTable("purchases", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const teams = pgTable("teams", {
   id: serial("id").primaryKey(),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const teamMembers = pgTable("team_members", {
   id: serial("id").primaryKey(),
@@ -233,7 +233,7 @@ export const teamMembers = pgTable("team_members", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const coupons = pgTable("coupons", {
   id: serial("id").primaryKey(),
@@ -252,7 +252,7 @@ export const coupons = pgTable("coupons", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const videoWatchEvents = pgTable("video_watch_events", {
   id: serial("id").primaryKey(),
@@ -261,13 +261,13 @@ export const videoWatchEvents = pgTable("video_watch_events", {
     .references(() => users.id),
   lessonId: integer("lesson_id")
     .notNull()
-    .references(() => lessons.id),
+    .references(() => lessons.id, { onDelete: "cascade" }),
   eventType: text("event_type").notNull(),
   positionSeconds: real("position_seconds").notNull(),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 // ─── Partner / Affiliate Tables ───
 
@@ -284,7 +284,7 @@ export const partners = pgTable("partners", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const partnerResourceCategories = pgTable("partner_resource_categories", {
   id: serial("id").primaryKey(),
@@ -293,7 +293,7 @@ export const partnerResourceCategories = pgTable("partner_resource_categories", 
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const partnerResources = pgTable("partner_resources", {
   id: serial("id").primaryKey(),
@@ -306,7 +306,7 @@ export const partnerResources = pgTable("partner_resources", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 export const partnerPageSettings = pgTable("partner_page_settings", {
   id: serial("id").primaryKey(),
@@ -315,7 +315,7 @@ export const partnerPageSettings = pgTable("partner_page_settings", {
   updatedAt: text("updated_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();
 
 // Submissions from the public /one-on-one coaching application form on the
 // marketing site (join.long-game.ai). This row is the source of truth — it is
@@ -334,4 +334,4 @@ export const coachingApplications = pgTable("coaching_applications", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}).enableRLS();

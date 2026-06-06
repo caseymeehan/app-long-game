@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1775065258117,
-      "tag": "0000_giant_jocasta",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1775070164257,
-      "tag": "0001_pink_nova",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1775316399961,
-      "tag": "0002_flaky_scrambler",
+      "when": 1780768156298,
+      "tag": "0000_baseline",
       "breakpoints": true
     }
   ]
