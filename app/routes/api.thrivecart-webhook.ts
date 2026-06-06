@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import * as Sentry from "@sentry/react-router";
 import type { Route } from "./+types/api.thrivecart-webhook";
+import { db } from "~/db";
 import { getSupabaseAdmin } from "~/lib/supabase-admin.server";
 import { getUserByEmail, setPasswordSetupFlag } from "~/services/userService";
 import { waitForAppUser } from "~/lib/wait-for-user";
@@ -142,17 +143,26 @@ async function handleOrderSuccess(params: URLSearchParams, courseId: number) {
     return new Response("App user not found", { status: 500 });
   }
 
-  // 3. Create purchase record
+  // 3 + 4. Record the purchase AND grant enrollment in one transaction. If the
+  // enrollment insert fails after the purchase row is written, the whole thing
+  // rolls back — otherwise ThriveCart's retry would see the existing purchase,
+  // hit the idempotency early-return above, and never enroll, silently leaving a
+  // paying customer charged but locked out.
   const pricePaid = parseInt(totalStr, 10) || 0;
-  await createPurchase({ userId: appUser.id, courseId, pricePaid, country: null, thrivecartOrderId: orderId, affiliateId });
-  console.log(`[thrivecart-webhook] Created purchase for order ${orderId}`);
+  await db.transaction(async (tx) => {
+    await createPurchase(
+      { userId: appUser.id, courseId, pricePaid, country: null, thrivecartOrderId: orderId, affiliateId },
+      tx
+    );
+    console.log(`[thrivecart-webhook] Created purchase for order ${orderId}`);
 
-  // 4. Enroll user (skip if already enrolled)
-  const existing = await findEnrollment(appUser.id, courseId);
-  if (!existing) {
-    await enrollUser({ userId: appUser.id, courseId, sendEmail: false, skipValidation: true });
-    console.log(`[thrivecart-webhook] Enrolled user ${appUser.id} in course ${courseId}`);
-  }
+    // Skip enrollment if already enrolled (admin-granted, re-purchase, etc.)
+    const existing = await findEnrollment(appUser.id, courseId, tx);
+    if (!existing) {
+      await enrollUser({ userId: appUser.id, courseId, sendEmail: false, skipValidation: true }, tx);
+      console.log(`[thrivecart-webhook] Enrolled user ${appUser.id} in course ${courseId}`);
+    }
+  });
 
   // 4b. Flag new buyers so the magic-link callback routes them through /set-password.
   // Skip existing customers (re-purchasers, admin-granted users) who may already have a password.

@@ -1,5 +1,5 @@
 import { eq, and, sql } from "drizzle-orm";
-import { db } from "~/db";
+import { db, type DbOrTx } from "~/db";
 import {
   enrollments,
   courses,
@@ -40,8 +40,12 @@ export async function getEnrollmentCountForCourse(courseId: number) {
   return Number(result?.count ?? 0);
 }
 
-export async function findEnrollment(userId: number, courseId: number) {
-  const [row] = await db
+export async function findEnrollment(
+  userId: number,
+  courseId: number,
+  client: DbOrTx = db
+) {
+  const [row] = await client
     .select()
     .from(enrollments)
     .where(
@@ -54,22 +58,25 @@ export async function isUserEnrolled(userId: number, courseId: number) {
   return !!(await findEnrollment(userId, courseId));
 }
 
-export async function enrollUser(opts: {
-  userId: number;
-  courseId: number;
-  sendEmail: boolean;
-  skipValidation: boolean;
-}) {
+export async function enrollUser(
+  opts: {
+    userId: number;
+    courseId: number;
+    sendEmail: boolean;
+    skipValidation: boolean;
+  },
+  client: DbOrTx = db
+) {
   const { userId, courseId, sendEmail, skipValidation } = opts;
   if (!skipValidation) {
     // Check if already enrolled
-    const existing = await findEnrollment(userId, courseId);
+    const existing = await findEnrollment(userId, courseId, client);
     if (existing) {
       throw new Error("User is already enrolled in this course");
     }
 
     // Check that the course exists
-    const [course] = await db
+    const [course] = await client
       .select()
       .from(courses)
       .where(eq(courses.id, courseId));
@@ -78,7 +85,7 @@ export async function enrollUser(opts: {
     }
   }
 
-  const [enrollment] = await db
+  const [enrollment] = await client
     .insert(enrollments)
     .values({ userId, courseId })
     .returning();

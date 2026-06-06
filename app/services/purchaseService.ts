@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { db } from "~/db";
+import { db, type DbOrTx } from "~/db";
 import { purchases } from "~/db/schema";
 import { getOrCreateTeamForUser } from "./teamService";
 import { generateCoupons } from "./couponService";
@@ -7,16 +7,19 @@ import { generateCoupons } from "./couponService";
 // ─── Purchase Service ───
 // Handles purchase records (transaction log separate from enrollments).
 
-export async function createPurchase(opts: {
-  userId: number;
-  courseId: number;
-  pricePaid: number;
-  country: string | null;
-  thrivecartOrderId?: string;
-  affiliateId?: string;
-}) {
+export async function createPurchase(
+  opts: {
+    userId: number;
+    courseId: number;
+    pricePaid: number;
+    country: string | null;
+    thrivecartOrderId?: string;
+    affiliateId?: string;
+  },
+  client: DbOrTx = db
+) {
   const { userId, courseId, pricePaid, country, thrivecartOrderId, affiliateId } = opts;
-  const [row] = await db
+  const [row] = await client
     .insert(purchases)
     .values({ userId, courseId, pricePaid, country, thrivecartOrderId, affiliateId })
     .returning();
