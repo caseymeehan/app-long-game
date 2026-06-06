@@ -1,16 +1,13 @@
 import { redirect } from "react-router";
+import * as Sentry from "@sentry/react-router";
 import type { Route } from "./+types/auth.callback";
 import { createSupabaseServerClient } from "~/lib/supabase.server";
-import { db } from "~/db";
-import { users, UserRole } from "~/db/schema";
-import { eq } from "drizzle-orm";
-import { isActivePartner } from "~/services/partnerService";
+import { redirectAfterLogin } from "~/lib/post-login.server";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const redirectTo = url.searchParams.get("redirectTo") || "/courses";
-  const isDefaultRedirect = redirectTo === "/" || redirectTo === "/courses";
   const responseHeaders = new Headers();
 
   if (code) {
@@ -18,47 +15,20 @@ export async function loader({ request }: Route.LoaderArgs) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
+      // Logins now use OTP codes (see /forgot-password); this path only fires
+      // for legacy/bookmarked magic links. Capture so we can measure residual
+      // failures (e.g. corporate scanners, cross-device) before retiring it.
       console.error(`[auth.callback] Code exchange failed: ${error.message}`);
+      Sentry.captureException(error, {
+        tags: { auth_failure: "code_exchange" },
+      });
       throw redirect(
         `/login?error=auth_failed&message=${encodeURIComponent(error.message)}`,
         { headers: responseHeaders }
       );
     }
 
-    // Get the authenticated user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      // Check if app user exists, create if not
-      const [existing] = await db
-        .select()
-        .from(users)
-        .where(eq(users.supabaseAuthId, user.id));
-
-      if (!existing) {
-        await db.insert(users).values({
-          name:
-            user.user_metadata?.name ||
-            user.email?.split("@")[0] ||
-            "User",
-          email: user.email!,
-          role: UserRole.Student,
-          supabaseAuthId: user.id,
-        });
-      } else if (existing.needsPasswordSetup) {
-        throw redirect("/set-password", { headers: responseHeaders });
-      }
-
-      // If no specific page was requested, send partners to their resources page
-      if (isDefaultRedirect && existing) {
-        const partner = await isActivePartner(existing.id);
-        if (partner) {
-          throw redirect("/partner-resources", { headers: responseHeaders });
-        }
-      }
-    }
+    return await redirectAfterLogin(supabase, responseHeaders, redirectTo);
   }
 
   throw redirect(redirectTo, { headers: responseHeaders });

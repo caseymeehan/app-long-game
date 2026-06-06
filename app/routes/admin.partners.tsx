@@ -10,7 +10,7 @@ import {
   togglePartnerActive,
   getPartnerByUserId,
 } from "~/services/partnerService";
-import { getAllUsers, getUserByEmail } from "~/services/userService";
+import { getAllUsers, getUserByEmail, setPasswordSetupFlag } from "~/services/userService";
 import { requireAdmin } from "~/lib/session";
 import { parseFormData } from "~/lib/validation";
 import { getSupabaseAdmin } from "~/lib/supabase-admin.server";
@@ -150,17 +150,11 @@ export async function action({ request }: Route.ActionArgs) {
     // Create partner record
     await createPartner({ userId: appUser.id, affiliateId, commissionTier: commissionTier ?? null, notes: notes ?? null });
 
-    // Send magic link for initial login
-    const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${process.env.APP_URL || "http://localhost:3000"}/auth/callback`,
-      },
-    });
-
-    if (otpError) {
-      console.error(`[admin.partners] Failed to send magic link: ${otpError.message}`);
-    }
+    // Flag for password setup so their first login (via /forgot-password OTP
+    // code) routes through /set-password — same as ThriveCart buyers. No login
+    // email is sent from here: direct the partner to /forgot-password to get
+    // their code (avoids the broken admin-client implicit-flow magic link).
+    await setPasswordSetupFlag(email);
 
     return { success: true };
   }
@@ -369,7 +363,7 @@ function CreatePartnerNewUser({ onDone }: { onDone: () => void }) {
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.success) {
-      toast.success("Partner created and magic link sent.");
+      toast.success("Partner created. Send them to /forgot-password for a login code.");
       onDone();
     }
     if (fetcher.state === "idle" && fetcher.data?.error) {
@@ -432,7 +426,9 @@ function CreatePartnerNewUser({ onDone }: { onDone: () => void }) {
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
-        A new user account will be created and a magic link email will be sent for initial login.
+        A new user account will be created. Direct the partner to{" "}
+        <span className="font-mono">/forgot-password</span> to get a login code
+        and set their password.
       </p>
       <div className="flex gap-2">
         <Button
