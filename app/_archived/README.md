@@ -26,6 +26,21 @@ the handler was live).
 - `routes/redeem.$code.tsx` — coupon claim page. Codes only ever came from team
   purchases, of which there were none.
 
+### Added 2026-06-06 (OTP login migration, commit `61a9f48` onward)
+
+- `routes/signup.tsx` — self-serve account creation (password + magic-link). Was
+  **orphaned** (nothing in the app linked to it; login has no signup link) and
+  predated the ThriveCart-only model. Its magic-link option also broke when login
+  moved to 6-digit OTP codes: the global email template now sends a code, but this
+  page still said "click the link" with no code-entry screen.
+- `routes/auth.callback.ts` — PKCE magic-link callback (`exchangeCodeForSession`).
+  Retired because logins now use OTP codes (`verifyOtp` on `/forgot-password`, no
+  link), so nothing generates a link that lands here. Its only remaining caller was
+  `signup.tsx` (also archived). The shared post-login routing it used lives on in
+  `app/lib/post-login.server.ts`, still used by `/forgot-password`. Note: this
+  removes the `auth_failure:code_exchange` Sentry capture — acceptable since all
+  users are on the OTP flow and no real traffic hits the callback.
+
 ## Related dead code still in the live tree (intentionally left in place)
 
 The services these routes used remain under `app/services/` as inert, unreferenced

@@ -7,9 +7,8 @@ import { isActivePartner } from "~/services/partnerService";
 
 /**
  * Shared post-authentication routing. Called once a Supabase session has been
- * established (via OTP code verification on /forgot-password, or the legacy
- * magic-link exchange on /auth/callback). Ensures an app `users` row exists,
- * then throws a redirect to the right destination.
+ * established (via OTP code verification on /forgot-password). Ensures an app
+ * `users` row exists, then throws a redirect to the right destination.
  *
  * Always throws — either a redirect to the destination, or a redirect to
  * /login if no authenticated user is found on the session.
