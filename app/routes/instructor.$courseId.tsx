@@ -257,7 +257,14 @@ export async function action({ params, request }: Route.ActionArgs) {
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
     }
-    await deleteModule(moduleId);
+    try {
+      await deleteModule(moduleId);
+    } catch (e) {
+      return data(
+        { error: e instanceof Error ? e.message : "Failed to delete module." },
+        { status: 400 }
+      );
+    }
     return { success: true, field: "module" };
   }
 
@@ -354,7 +361,14 @@ export async function action({ params, request }: Route.ActionArgs) {
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Lesson not found in this course." }, { status: 404 });
     }
-    await deleteLesson(lessonId);
+    try {
+      await deleteLesson(lessonId);
+    } catch (e) {
+      return data(
+        { error: e instanceof Error ? e.message : "Failed to delete lesson." },
+        { status: 400 }
+      );
+    }
     return { success: true, field: "lesson" };
   }
 
