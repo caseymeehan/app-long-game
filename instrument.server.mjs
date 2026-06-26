@@ -17,8 +17,11 @@ Sentry.init({
     /x-forwarded-host header does not match.*origin header/i,
 
     // React Router's internal error for unmatched routes. Scanners probe
-    // non-existent paths; legit users hit our 404 route, not this error.
-    /getInternalRouterError/,
+    // non-existent paths (/wp-blink.php, /1.php, etc.); legit users hit our
+    // 404 route, not this error. ignoreErrors matches the error message/value,
+    // not the Sentry-displayed title ("getInternalRouterError"), so we match
+    // the actual thrown message here.
+    /No route matches URL/i,
   ],
 
   beforeSend(event) {
